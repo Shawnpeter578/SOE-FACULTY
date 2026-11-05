@@ -54,5 +54,5 @@ export async function login(
   revalidatePath("/", "layout");
 
   // 6. Redirect after successful login
-  redirect("/dashboard/faculty");
+redirect("/faculty/dashboard");
 }
