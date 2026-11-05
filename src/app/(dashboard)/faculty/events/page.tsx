@@ -92,7 +92,7 @@ export default async function FacultyProposalsPage() {
 
               {proposal.review_note && (
                 <div className="rounded-md bg-gray-50 p-3">
-                  <p className="text-sm font-medium">Dean's feedback</p>
+                  <p className="text-sm font-medium">Dean&apos;s feedback</p>
                   <p className="mt-1 text-sm">
                     {proposal.review_note}
                   </p>

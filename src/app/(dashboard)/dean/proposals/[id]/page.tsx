@@ -1,5 +1,6 @@
 
 import { notFound } from "next/navigation";
+import Link from "next/link";
 import { requireRole } from "@/lib/auth/guard";
 import { createClient } from "@/lib/supabase/server";
 import ReviewControls from "./review-controls";
@@ -46,9 +47,9 @@ export default async function ProposalDetailsPage({
   return (
     <main className="mx-auto max-w-4xl space-y-6 p-6">
       <div>
-        <a href="/dean/proposals" className="text-sm underline">
+        <Link href="/dean/proposals" className="text-sm underline">
           ← Back to proposals
-        </a>
+        </Link>
 
         <h1 className="mt-4 text-2xl font-semibold">
           {proposal.title}
