@@ -12,7 +12,6 @@ import {
   Check,
   AlertCircle,
   Plus,
-  Search,
   Bell,
   X,
   CheckCircle2,
@@ -310,56 +309,6 @@ export default function DashboardClient({
 
   return (
     <>
-      {/* Desktop header */}
-      <header className="hidden lg:flex items-center justify-between px-8 py-5 bg-white sticky top-0 z-10 transition-all duration-300">
-        <div className="relative w-[480px] group">
-          <Search
-            className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"
-            size={18}
-          />
-
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search events, committees, people..."
-            className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-slate-300"
-          />
-
-          {searchQuery && (
-            <button
-              onClick={() => setSearchQuery("")}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 bg-slate-100 p-1 rounded-full"
-              aria-label="Clear search"
-            >
-              <X size={14} />
-            </button>
-          )}
-        </div>
-
-        <div className="flex items-center gap-6">
-          <span className="text-[13px] font-medium text-slate-500">
-            Faculty workspace
-          </span>
-
-          <button
-            onClick={() => setNotifications([])}
-            className="relative text-slate-500 hover:text-slate-700 transition-colors"
-            aria-label="Clear notifications"
-          >
-            <Bell size={20} />
-
-            {notifications.length > 0 && (
-              <span className="absolute top-0 right-0.5 w-2 h-2 bg-red-500 rounded-full" />
-            )}
-          </button>
-
-          <div className="w-[34px] h-[34px] rounded-full bg-[#F1F5F9] cursor-pointer text-[#1E2B58] font-bold flex items-center justify-center text-xs">
-            {firstName.slice(0, 2).toUpperCase()}
-          </div>
-        </div>
-      </header>
-
       <div className="p-5 md:p-8 max-w-[1200px] mx-auto w-full">
         {/* Mobile heading */}
         <div className="flex items-start justify-between lg:hidden mb-8 mt-2 md:mt-0">
