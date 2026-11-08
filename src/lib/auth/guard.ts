@@ -17,6 +17,16 @@ export type UserProfile = {
   role: AppRole;
 };
 
+export function isTemporaryDeanPreviewEnabled(): boolean {
+  if (process.env.NODE_ENV !== "development") return false;
+
+  const expiresAt = Date.parse(
+    process.env.EVENTDESK_DEV_DEAN_ACCESS_UNTIL ?? "",
+  );
+
+  return Number.isFinite(expiresAt) && Date.now() < expiresAt;
+}
+
 export async function requireAuthenticatedProfile(): Promise<UserProfile> {
   const supabase = await createClient();
 
@@ -50,10 +60,19 @@ export async function requireAuthenticatedProfile(): Promise<UserProfile> {
 }
 
 export async function requireRole(
-  allowedRoles: AppRole[]
+  allowedRoles: AppRole[],
+  options: { allowTemporaryDeanPreview?: boolean } = {},
 ): Promise<UserProfile> {
 
   const profile = await requireAuthenticatedProfile();
+
+  if (
+    options.allowTemporaryDeanPreview &&
+    isTemporaryDeanPreviewEnabled() &&
+    allowedRoles.includes("DEAN")
+  ) {
+    return { ...profile, role: "DEAN" };
+  }
 
   if (!allowedRoles.includes(profile.role)) {
     redirect("/access-denied");

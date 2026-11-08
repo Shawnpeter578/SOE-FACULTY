@@ -49,7 +49,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <div className="p-4">
             <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-2">Workspace</p>
             <button className="w-full flex items-center justify-between bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm font-semibold hover:bg-slate-100 transition-colors">
-              <span className="truncate mr-2">St. Aloysius School of Engineering</span>
+              <span className="truncate mr-2">St Aloysius School of Enginneering</span>
               <ChevronDown className="w-4 h-4 text-slate-500 flex-shrink-0" />
             </button>
           </div>
@@ -125,7 +125,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               <Bell className="w-5 h-5" />
               <div className="absolute top-0 right-0 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></div>
             </div>
-            <Link href="/profile" className="w-8 h-8 rounded-full bg-[#EEF2F6] text-[#1A2234] flex items-center justify-center font-bold text-xs">
+            <Link href="/faculty/profile" className="w-8 h-8 rounded-full bg-[#EEF2F6] text-[#1A2234] flex items-center justify-center font-bold text-xs">
               AK
             </Link>
           </div>
