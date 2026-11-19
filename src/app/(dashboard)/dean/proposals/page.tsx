@@ -1,105 +1,46 @@
-
-import { requireRole } from "@/lib/auth/guard";
+import RouteRefresh from "@/components/route-refresh";
+import EventRequestsList, { type EventListRequest } from "@/components/event-requests-list";
 import { createClient } from "@/lib/supabase/server";
+import { getDeanAccount } from "../account";
 
-export default async function DeanProposalsPage() {
-  await requireRole(["DEAN"]);
+type DeanRequestRow = Omit<EventListRequest, "submittedBy"> & { created_by: string };
 
+export default async function DeanProposalsPage({ searchParams }: PageProps<"/dean/proposals">) {
+  await getDeanAccount();
   const supabase = await createClient();
+  const filters = await searchParams;
+  const rows: DeanRequestRow[] = [];
+  const batchSize = 250;
+  let lastId: string | undefined;
 
-  const { data: proposals, error } = await supabase
-    .from("event_proposals")
-    .select(`
-      id,
-      title,
-      venue,
-      start_date,
-      end_date,
-      estimated_budget,
-      status,
-      created_at,
-      created_by,
-      event:events(status)
-    `)
-    .order("created_at", { ascending: false });
+  while (true) {
+    const query = supabase.from("event_proposals")
+      .select("id,title,venue,start_date,end_date,status,review_note,created_at,created_by,estimated_budget,event:events(status)")
+      .neq("status", "DRAFT")
+      .order("id")
+      .limit(batchSize);
+    const { data, error } = await (lastId ? query.gt("id", lastId) : query)
+      .overrideTypes<DeanRequestRow[], { merge: false }>();
 
-  if (error) {
-    throw new Error("Unable to load event proposals.");
+    if (error) throw new Error("Unable to load event requests.");
+    rows.push(...data);
+    if (data.length < batchSize) break;
+    lastId = data[data.length - 1].id;
   }
 
-  const userIds = [...new Set(
-    proposals.map((proposal) => proposal.created_by)
-  )];
-
-  const { data: profiles, error: profileError } = userIds.length
-    ? await supabase
-        .from("profiles")
-        .select("id, full_name")
-        .in("id", userIds)
-    : { data: [], error: null };
-
-  if (profileError) {
-    throw new Error("Unable to load faculty profiles.");
+  const authorIds = [...new Set(rows.map((row) => row.created_by))];
+  const names = new Map<string, string>();
+  for (let index = 0; index < authorIds.length; index += batchSize) {
+    const { data, error } = await supabase.from("profiles").select("id,full_name").in("id", authorIds.slice(index, index + batchSize));
+    if (error) throw new Error("Unable to load the faculty names for these requests.");
+    for (const profile of data) names.set(profile.id, profile.full_name);
   }
-
-  const profileMap = new Map(
-    (profiles ?? []).map((profile) => [
-      profile.id,
-      profile.full_name,
-    ])
-  );
+  const requests = rows.map((row) => ({ ...row, submittedBy: names.get(row.created_by) ?? "Faculty member" }));
 
   return (
-    <main className="space-y-6 p-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Event Proposals</h1>
-        <p className="text-gray-500">
-          Review and manage institutional event proposals.
-        </p>
-      </div>
-
-      {proposals.length === 0 ? (
-        <p>No event proposals have been submitted yet.</p>
-      ) : (
-        <div className="space-y-4">
-          {proposals.map((proposal) => (
-            <article
-              key={proposal.id}
-              className="rounded-lg border p-5"
-            >
-              <div className="flex flex-wrap justify-between gap-3">
-                <h2 className="font-semibold">{proposal.title}</h2>
-                <span className="text-sm">
-                  {((proposal.event as unknown as { status: string } | null)?.status ?? proposal.status).replaceAll("_", " ")}
-                </span>
-              </div>
-
-              <p className="mt-2 text-sm text-gray-500">
-                Submitted by:{" "}
-                {profileMap.get(proposal.created_by) ?? "Unknown"}
-              </p>
-
-              <p className="mt-1 text-sm">
-                {proposal.venue} · {proposal.start_date} to{" "}
-                {proposal.end_date}
-              </p>
-
-              {proposal.estimated_budget !== null && (
-                <p className="mt-1 text-sm">
-                  Estimated budget: ₹{proposal.estimated_budget}
-                </p>
-              )}
-
-              <a
-                href={`/dean/proposals/${proposal.id}`}
-                className="mt-4 inline-block text-sm underline"
-              >
-                Review proposal →
-              </a>
-            </article>
-          ))}
-        </div>
-      )}
-    </main>
+    <>
+      <RouteRefresh />
+      <EventRequestsList requests={requests} searchParams={filters} workspace="dean" />
+    </>
   );
 }

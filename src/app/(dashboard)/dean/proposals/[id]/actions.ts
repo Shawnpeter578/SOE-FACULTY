@@ -78,11 +78,15 @@ export async function reviewProposal(
     };
   }
 
-  if (action !== "UNDER_REVIEW" && proposal.status !== "UNDER_REVIEW") {
+  if (action === "CHANGES_REQUESTED" && proposal.status !== "UNDER_REVIEW") {
     return {
       success: false,
       message: "Start the review before making a final decision.",
     };
+  }
+
+  if ((action === "APPROVED_BY_DEAN" || action === "REJECTED") && note && note.length > 500) {
+    return { success: false, message: "Keep the decision note to 500 characters or fewer." };
   }
 
   const { data: updated, error: updateError } = await supabase
@@ -118,9 +122,9 @@ export async function reviewProposal(
     success: true,
     message:
       action === "APPROVED_BY_DEAN"
-        ? "Proposal approved. The official event has been created."
+        ? "Dean approval recorded successfully."
         : action === "REJECTED"
-          ? "Proposal rejected."
+          ? "The reason has been shared with the faculty."
           : action === "CHANGES_REQUESTED"
             ? "Changes requested successfully."
             : "Review started.",

@@ -1,16 +1,15 @@
 'use client';
 
 import React from 'react';
-import Form from 'next/form';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import RouteRefresh from '@/components/route-refresh';
-import { universityName } from '@/lib/university';
+import WorkspaceTopBar from '@/components/workspace-top-bar';
 import { getFacultyInitials } from '../profile/profile-fields';
 import { FacultyNotifications, FacultyNotificationButton } from './FacultyNotifications';
 import { 
   LayoutGrid, Calendar, FileText, Users, MessageSquare, Wallet, 
-  LineChart, User, Search, Plus, ChevronRight
+  LineChart, User, Plus, ChevronRight
 } from 'lucide-react';
 
 export default function AppLayout({ children, facultyName, refreshIntervalMs }: { children: React.ReactNode; facultyName: string; refreshIntervalMs?: number }) {
@@ -18,6 +17,7 @@ export default function AppLayout({ children, facultyName, refreshIntervalMs }: 
   const initials = getFacultyInitials(facultyName);
   const isCurrent = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
   const isEventsPage = /^\/faculty\/events(?:\/[^/]+)?$/.test(pathname);
+  const isDashboard = pathname === '/faculty/dashboard';
 
   // Update desktopNav paths
   const desktopNav = [
@@ -55,12 +55,7 @@ export default function AppLayout({ children, facultyName, refreshIntervalMs }: 
             </div>
           </div>
 
-          <div className="p-4">
-            <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-2">Workspace</p>
-            <p className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold leading-snug">{universityName}</p>
-          </div>
-
-          <nav className="px-3 space-y-1">
+          <nav className="space-y-1 px-3 pt-4">
             {desktopNav.map((item) => {
               const active = isCurrent(item.href);
               return (
@@ -116,31 +111,16 @@ export default function AppLayout({ children, facultyName, refreshIntervalMs }: 
       {/* === MAIN CONTENT CONTAINER === */}
       <main className="flex min-w-0 flex-1 flex-col h-full relative overflow-hidden">
         
-        {/* Global Desktop Header */}
-        <header className="hidden lg:flex h-16 bg-white border-b border-slate-200 items-center justify-between px-8 flex-shrink-0">
-          {isEventsPage ? <div /> : (
-            <Form action="/faculty/events" className="relative w-96" role="search" aria-label="Faculty event search">
-              <input
-                type="search"
-                name="q"
-                maxLength={120}
-                aria-label="Search my events"
-                placeholder="Search my events..."
-                className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-4 pr-10 text-sm transition-all focus:border-[#1A2234] focus:ring-1 focus:ring-[#1A2234] focus:outline-none"
-              />
-              <button type="submit" aria-label="Search" className="absolute inset-y-0 right-0 px-3 text-slate-500 hover:text-slate-900">
-                <Search className="size-4" aria-hidden="true" />
-              </button>
-            </Form>
-          )}
-          <div className="flex items-center gap-5 text-sm font-medium text-slate-600">
-            <span>Faculty workspace</span>
-            <FacultyNotificationButton />
-            <Link href="/faculty/profile" aria-label="Your profile" className="w-8 h-8 rounded-full bg-[#EEF2F6] text-[#1A2234] flex items-center justify-center font-bold text-xs">
-              {initials}
-            </Link> 
-          </div>
-        </header>
+        <WorkspaceTopBar
+          role="Faculty"
+          name={facultyName}
+          initials={initials}
+          searchPath="/faculty/events"
+          searchLabel="Search my events"
+          showSearch={!isEventsPage}
+          showOnMobile={isDashboard}
+          notifications={<FacultyNotificationButton />}
+        />
 
         {/* Dynamic Page Content */}
         <div className="flex-1 overflow-y-auto p-4 pb-24 lg:pb-8 lg:p-8 scroll-smooth">

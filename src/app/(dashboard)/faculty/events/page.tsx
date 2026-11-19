@@ -1,7 +1,7 @@
 import { requireRole } from "@/lib/auth/guard";
 import { createClient } from "@/lib/supabase/server";
 import AppLayout from "../components/AppLayout";
-import EventsList from "./events-list";
+import EventsList from "@/components/event-requests-list";
 import { loadFacultyRequests } from "./queries";
 
 export default async function FacultyEventsPage({ searchParams }: PageProps<"/faculty/events">) {

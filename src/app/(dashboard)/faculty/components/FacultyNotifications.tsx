@@ -197,7 +197,7 @@ export function FacultyNotifications({ children }: { children: ReactNode }) {
 export function FacultyNotificationButton({ className = "" }: { className?: string }) {
   const { unread, open, expanded } = useNotifications();
   return (
-    <button type="button" aria-haspopup="dialog" aria-expanded={expanded} aria-controls={expanded ? "faculty-notification-popover" : undefined} aria-label={unread ? "Notifications, unread updates" : "Notifications"} onClick={(event) => open(event.currentTarget)} className={`relative flex size-9 shrink-0 items-center justify-center rounded-full text-brand-primary hover:bg-slate-100 ${className}`}>
+    <button type="button" aria-haspopup="dialog" aria-expanded={expanded} aria-controls={expanded ? "faculty-notification-popover" : undefined} aria-label={unread ? "Notifications, unread updates" : "Notifications"} onClick={(event) => open(event.currentTarget)} className={`relative flex size-11 shrink-0 items-center justify-center rounded-xl border border-brand-border bg-brand-surface text-brand-primary transition-colors hover:bg-brand-selected focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-primary aria-expanded:bg-brand-selected ${className}`}>
       <Bell size={20} aria-hidden="true" />
       {unread && <span className="absolute right-1.5 top-1.5 size-2.5 rounded-full border-2 border-white bg-red-500" aria-hidden="true" />}
     </button>

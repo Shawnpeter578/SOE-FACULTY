@@ -5,10 +5,18 @@ import { Check, UserRound } from "lucide-react";
 import { saveFacultyProfile, type ProfileActionState } from "./actions";
 import { profileFields, type FacultyProfileFields } from "./profile-fields";
 
-export default function FacultyProfileForm({ values, canEdit }: { values: FacultyProfileFields; canEdit: boolean }) {
+export default function FacultyProfileForm({
+  values,
+  canEdit,
+  saveAction = saveFacultyProfile,
+}: {
+  values: FacultyProfileFields;
+  canEdit: boolean;
+  saveAction?: (previous: ProfileActionState, data: FormData) => Promise<ProfileActionState>;
+}) {
   const [draft, setDraft] = useState<Partial<FacultyProfileFields>>({});
   const [state, formAction, pending] = useActionState(async (previous: ProfileActionState, data: FormData) => {
-    const result = await saveFacultyProfile(previous, data);
+    const result = await saveAction(previous, data);
     if (result.success) setDraft({});
     return result;
   }, { success: false, message: "" });

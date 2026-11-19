@@ -1,9 +1,11 @@
 
 "use client";
 
-import React, { useMemo, useState } from "react";
+import { useMemo } from "react";
 import Link from "next/link";
-import { FacultyNotificationButton, FacultyNotificationPreview } from "../components/FacultyNotifications";
+import StatCard from "@/components/metric-card";
+import { formatEventDateRange } from "@/lib/event-approval";
+import { FacultyNotificationPreview } from "../components/FacultyNotifications";
 import { facultyCardClass, facultyPageClass } from "../components/workspace-styles";
 import { getStatusLabel, getStatusStyle } from "../events/event-status";
 import {
@@ -14,6 +16,8 @@ import {
   ChevronRight,
   Check,
   AlertCircle,
+  ArrowRight,
+  MapPin,
   Plus,
   X,
 } from "lucide-react";
@@ -59,6 +63,7 @@ interface EventItem {
   proposalId: string;
   month: string;
   day: string;
+  startDate: string;
   title: string;
   dateStr: string;
   location: string;
@@ -66,59 +71,92 @@ interface EventItem {
   stages: Stage[];
 }
 
-const dashboardCard = `${facultyCardClass} min-w-0 p-4 sm:p-5`;
+const dashboardCard = `${facultyCardClass} min-w-0 p-4 sm:p-6`;
 
-const StatCard = ({
-  title,
-  count,
-  subtitle,
-  icon: Icon,
-}: {
-  title: string;
-  count: string | number;
-  subtitle: string;
-  icon: React.ElementType;
-}) => (
-  <div className={`${facultyCardClass} grid min-h-28 min-w-0 grid-cols-[minmax(0,1fr)_auto] content-start items-center gap-x-2 gap-y-1 p-3.5 sm:p-4`}>
-    <h3 className="col-span-2 text-[13px] font-medium leading-4 text-slate-600">{title}</h3>
-    <p className="text-[30px] font-bold leading-none tabular-nums text-slate-900">{count}</p>
-    <span className="flex size-7 items-center justify-center rounded-full bg-slate-50 text-[#1E2B58]">
-      <Icon size={16} aria-hidden="true" />
-    </span>
-    <p className="col-span-2 text-[13px] leading-4 text-slate-600">{subtitle}</p>
-  </div>
-);
 
-const PipelineBar = ({ stages }: { stages: Stage[] }) => (
-  <div className="mt-4 grid w-full grid-cols-5 gap-1.5">
-    {stages.map((stage, idx) => (
-      <div
-        key={idx}
-        className="flex min-w-0 flex-col items-center gap-1.5 text-center"
+function PipelineBar({ stages }: { stages: Stage[] }) {
+  const colors: Record<StageStatus, string> = {
+    completed: "bg-emerald-600",
+    current: "bg-brand-primary",
+    upcoming: "bg-brand-border",
+  };
+
+  return (
+    <div className="mt-4 rounded-2xl bg-brand-canvas px-3 py-3 sm:px-4">
+      <p className="mb-2.5 text-xs font-semibold text-brand-primary">Event progress</p>
+      <ol aria-label="Event progress" className="grid grid-cols-5 gap-x-1.5 sm:gap-x-2.5">
+        {stages.map((stage) => (
+          <li key={stage.label} aria-current={stage.status === "current" ? "step" : undefined} className="min-w-0">
+            <span aria-hidden="true" className={`mb-1.5 block h-1.5 rounded-full ${colors[stage.status]}`} />
+            <span className={`block text-[10px] leading-tight [overflow-wrap:anywhere] sm:text-xs ${stage.status === "current" ? "font-bold text-brand-primary" : "font-medium text-text-secondary"}`}>
+              {stage.label}<span className="sr-only">, {stage.status}</span>
+            </span>
+          </li>
+        ))}
+      </ol>
+    </div>
+  );
+}
+
+function EventCard({ event }: { event: EventItem }) {
+  const declined = event.status === "REJECTED" || event.status === "REJECTED_BY_VC";
+  const approved = event.status === "APPROVED_BY_DEAN" || event.status === "OFFICIALLY_APPROVED";
+  const StatusIcon = declined ? X : approved ? Check : Clock;
+  const detailHref = `/faculty/events/${event.proposalId}`;
+
+  return (
+    <article className={`${dashboardCard} transition-colors hover:bg-brand-selected`}>
+      <Link
+        href={detailHref}
+        className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-3 rounded-xl no-underline hover:no-underline focus:no-underline active:no-underline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-brand-primary sm:gap-4"
       >
-        <div
-          className={`h-1.5 w-full rounded-full transition-colors duration-500 ${
-            stage.status === "completed"
-              ? "bg-[#10B981]"
-              : stage.status === "current"
-                ? "bg-[#1E2B58]"
-                : "bg-slate-200"
-          }`}
-        />
+        <div className="flex w-12 shrink-0 flex-col items-center rounded-xl bg-brand-selected py-2.5 text-brand-primary sm:w-14" aria-hidden="true">
+          <span className="text-[10px] font-bold uppercase tracking-wider sm:text-xs">{event.month}</span>
+          <span className="mt-0.5 text-xl font-bold leading-none tabular-nums sm:text-2xl">{event.day}</span>
+        </div>
 
-        <span
-          className={`break-words text-[11px] leading-tight font-bold transition-colors duration-300 ${
-            stage.status === "current"
-              ? "text-[#1E2B58]"
-              : "text-slate-400"
-          }`}
-        >
-          {stage.label}
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-start gap-x-3 gap-y-2">
+            <h3 className="min-w-0 text-base font-bold leading-snug tracking-tight text-text-primary [overflow-wrap:anywhere] sm:text-lg">
+              {event.title}
+            </h3>
+            <span className={`inline-flex max-w-full items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${getStatusStyle(event.status)}`}>
+              <StatusIcon size={14} className="shrink-0" aria-hidden="true" />
+              <span>{getStatusLabel(event.status)}</span>
+            </span>
+          </div>
+          <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1.5 text-sm text-text-secondary">
+            <span className="inline-flex items-start gap-1.5">
+              <Calendar size={15} className="mt-0.5 shrink-0" aria-hidden="true" />
+              {event.dateStr}
+            </span>
+            {event.location && (
+              <span className="inline-flex min-w-0 items-start gap-1.5 [overflow-wrap:anywhere]">
+                <MapPin size={15} className="mt-0.5 shrink-0" aria-hidden="true" />
+                <span className="min-w-0">{event.location}</span>
+              </span>
+            )}
+          </div>
+        </div>
+
+        <span className="flex size-7 items-center justify-center rounded-full bg-brand-canvas text-brand-primary sm:size-9">
+          <ChevronRight size={17} aria-hidden="true" />
         </span>
-      </div>
-    ))}
-  </div>
-);
+      </Link>
+
+      {!declined && <PipelineBar stages={event.stages} />}
+
+      {event.status === "CHANGES_REQUESTED" && (
+        <Link
+          href={`${detailHref}/edit`}
+          className="mt-3 inline-flex min-h-10 items-center gap-2 rounded-full bg-warning-bg px-3.5 py-2 text-sm font-semibold text-amber-900 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-primary"
+        >
+          Review feedback and make changes <ArrowRight size={15} className="shrink-0" aria-hidden="true" />
+        </Link>
+      )}
+    </article>
+  );
+}
 
 function formatDate(dateString: string) {
   const date = new Date(`${dateString}T00:00:00`);
@@ -127,11 +165,6 @@ function formatDate(dateString: string) {
     month: date.toLocaleString("en-IN", { month: "short" }),
     day: String(date.getDate()).padStart(2, "0"),
   };
-}
-
-function formatDateRange(start: string, end: string) {
-  if (start === end) return start;
-  return `${start} – ${end}`;
 }
 
 function getProposalStages(status: string): Stage[] {
@@ -169,8 +202,6 @@ export default function DashboardClient({
   proposals,
   events,
 }: DashboardProps) {
-  const [searchQuery] = useState("");
-
   const dashboardEvents = useMemo<EventItem[]>(() => {
     const proposalItems: EventItem[] = proposals.map((proposal) => {
       const date = formatDate(proposal.start_date);
@@ -180,8 +211,9 @@ export default function DashboardClient({
         proposalId: proposal.id,
         month: date.month,
         day: date.day,
+        startDate: proposal.start_date,
         title: proposal.title,
-        dateStr: formatDateRange(
+        dateStr: formatEventDateRange(
           proposal.start_date,
           proposal.end_date
         ),
@@ -199,8 +231,9 @@ export default function DashboardClient({
         proposalId: event.proposal_id,
         month: date.month,
         day: date.day,
+        startDate: event.start_date,
         title: event.title,
-        dateStr: formatDateRange(
+        dateStr: formatEventDateRange(
           event.start_date,
           event.end_date
         ),
@@ -224,7 +257,7 @@ export default function DashboardClient({
     );
 
     return [...officialEventItems, ...uniqueProposals].sort(
-      (a, b) => a.dateStr.localeCompare(b.dateStr)
+      (a, b) => a.startDate.localeCompare(b.startDate)
     );
   }, [proposals, events]);
 
@@ -246,30 +279,17 @@ export default function DashboardClient({
     );
   }).length;
 
-  const filteredEvents = dashboardEvents.filter(
-    (event) =>
-      event.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      event.location.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
   const firstName = profile.fullName.trim().split(/\s+/)[0] || "there";
 
   return (
     <>
       <div className={`${facultyPageClass} @container`}>
         {/* Mobile heading */}
-        <div className="flex items-start justify-between gap-3 lg:hidden">
-          <div>
-            <h1 className="text-[28px] font-extrabold text-[#0F172A] tracking-tight mb-1">
-              Good morning, {firstName}
-            </h1>
-
-            <p className="text-[15px] font-medium text-[#64748B]">
-              Your faculty workspace
-            </p>
-          </div>
-
-          <FacultyNotificationButton />
+        <div className="lg:hidden">
+          <h1 className="mb-1 text-[28px] font-extrabold tracking-tight text-[#0F172A]">
+            Good morning, {firstName}
+          </h1>
+          <p className="text-[15px] font-medium text-[#64748B]">Your faculty workspace</p>
         </div>
 
         {/* Desktop heading */}
@@ -295,45 +315,22 @@ export default function DashboardClient({
 
         {/* Statistics */}
         <section aria-label="Event statistics" className="grid auto-rows-fr grid-cols-2 gap-3 @min-[42rem]:grid-cols-4 sm:gap-4">
-          <StatCard
-            title="Pending approval"
-            count={pendingCount}
-            subtitle="Awaiting Dean review"
-            icon={Clock}
-          />
-
-          <StatCard
-            title="Approved events"
-            count={approvedCount}
-            subtitle="Dean-approved events"
-            icon={CalendarCheck}
-          />
-
-          <StatCard
-            title="Ongoing events"
-            count={ongoingCount}
-            subtitle="Currently happening"
-            icon={Calendar}
-          />
-
-          <StatCard
-            title="Bills pending"
-            count="—"
-            subtitle="Finance module coming soon"
-            icon={Receipt}
-          />
+          <StatCard title="Pending approval" count={pendingCount} icon={Clock} />
+          <StatCard title="Approved events" count={approvedCount} icon={CalendarCheck} />
+          <StatCard title="Ongoing events" count={ongoingCount} icon={Calendar} />
+          <StatCard title="Bills pending" count="—" icon={Receipt} />
         </section>
 
         {/* Main dashboard content */}
         <section aria-labelledby="dashboard-events-heading" className="grid items-start gap-x-5 gap-y-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
           <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
             <h2 id="dashboard-events-heading" className="text-xl font-bold tracking-tight text-slate-900">
-              {searchQuery ? "Search Results" : "My events"}
+              My events
             </h2>
 
             <Link
               href="/faculty/events"
-              className="inline-flex items-center gap-1 text-sm font-semibold text-[#1E2B58] hover:underline"
+              className="inline-flex min-h-9 items-center gap-1 rounded-full bg-brand-selected px-3 text-sm font-semibold text-brand-primary transition-colors hover:bg-brand-border focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-primary"
             >
               View all {dashboardEvents.length}
               <ChevronRight size={18} aria-hidden="true" />
@@ -341,92 +338,22 @@ export default function DashboardClient({
           </div>
 
           <div className="flex min-w-0 flex-col gap-4 lg:col-start-1 lg:row-start-2">
-            {filteredEvents.length === 0 ? (
-              <div className={`${facultyCardClass} p-5 text-center sm:p-7`}>
-                <Calendar
-                  size={32}
-                  className="mx-auto mb-3 text-slate-300"
-                />
-
-                <p className="text-slate-500 font-medium">
-                  {searchQuery
-                    ? `No events found matching "${searchQuery}"`
-                    : "You haven't submitted any event proposals yet."}
-                </p>
-
-                {!searchQuery && (
-                  <Link
-                    href="/faculty/request"
-                    className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-[#1E2B58] hover:underline"
-                  >
-                    <Plus size={16} />
-                    Propose your first event
-                  </Link>
-                )}
+            {dashboardEvents.length === 0 ? (
+              <div className={`${dashboardCard} flex min-h-56 flex-col items-center justify-center text-center`}>
+                <span className="mb-4 flex size-12 items-center justify-center rounded-2xl bg-brand-selected text-brand-primary">
+                  <Calendar size={24} aria-hidden="true" />
+                </span>
+                <h3 className="text-base font-bold text-text-primary">No events yet</h3>
+                <p className="mt-1 text-sm text-text-secondary">Your requests and their progress will appear here.</p>
+                <Link
+                  href="/faculty/request"
+                  className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-full bg-brand-primary px-4 text-sm font-semibold text-white hover:bg-brand-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-primary"
+                >
+                  <Plus size={16} aria-hidden="true" /> Propose your first event
+                </Link>
               </div>
             ) : (
-              filteredEvents.map((event) => (
-                <div
-                  key={event.id}
-                  className={`${dashboardCard} transition-colors hover:border-slate-300`}
-                >
-                  <Link href={`/faculty/events/${event.proposalId}`} className="group flex items-start gap-3 rounded-lg sm:gap-4">
-                    <div className="w-14 shrink-0 rounded-xl bg-slate-50 p-2.5 text-center sm:w-16 sm:p-3">
-                      <div className="text-[13px] font-bold text-[#1E2B58] uppercase tracking-wider">
-                        {event.month}
-                      </div>
-
-                      <div className="mt-1 text-xl font-bold leading-none text-slate-900 sm:text-2xl">
-                        {event.day}
-                      </div>
-                    </div>
-
-                    <div className="min-w-0 flex-1">
-                      <div className="flex justify-between items-start gap-2">
-                        <h3 className="min-w-0 break-words text-base font-bold tracking-tight text-slate-900">
-                          <span className="group-hover:underline">{event.title}</span>
-                        </h3>
-
-                        <ChevronRight
-                          size={18}
-                          className="text-slate-400 flex-shrink-0"
-                        />
-                      </div>
-
-                      <p className="mt-1 mb-2 break-words text-sm text-slate-600">
-                        {event.dateStr}
-                        {event.location && ` · ${event.location}`}
-                      </p>
-
-                      <span
-                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[13px] font-bold ${getStatusStyle(event.status)}`}
-                      >
-                        {event.status === "REJECTED" || event.status === "REJECTED_BY_VC" ? (
-                          <X size={14} />
-                        ) : event.status === "APPROVED_BY_DEAN" ||
-                          event.status === "OFFICIALLY_APPROVED" ? (
-                          <Check size={16} strokeWidth={3} />
-                        ) : (
-                          <Clock size={14} strokeWidth={2.5} />
-                        )}
-
-                        {getStatusLabel(event.status)}
-                      </span>
-                    </div>
-                  </Link>
-
-                  <PipelineBar stages={event.stages} />
-
-                  {event.status === "CHANGES_REQUESTED" && (
-                    <Link
-                      href={`/faculty/events/${event.proposalId}/edit`}
-                      className="mt-4 inline-block text-sm font-semibold text-orange-700 hover:underline"
-                    >
-                      Review feedback and make changes →
-                    </Link>
-                  )}
-                </div>
-              ))
+              dashboardEvents.map((event) => <EventCard key={event.id} event={event} />)
             )}
 
             {/* Mobile finance placeholder */}
@@ -453,27 +380,17 @@ export default function DashboardClient({
           <div className="hidden min-w-0 flex-col gap-4 lg:col-start-2 lg:row-start-2 lg:flex">
             {/* Upcoming deadlines placeholder */}
             <div className={dashboardCard}>
-              <div className="mb-4 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-brand-selected text-brand-primary">
+                  <Clock size={19} aria-hidden="true" />
+                </span>
                 <h3 className="text-base font-bold tracking-tight text-slate-900">
                   Upcoming deadlines
                 </h3>
-
-                <Clock size={18} className="shrink-0 text-[#1E2B58]" aria-hidden="true" />
               </div>
-
-              <div className="text-center py-5">
-                <Calendar
-                  size={30}
-                  className="mx-auto mb-3 text-slate-300"
-                />
-
-                <p className="text-sm text-slate-500">
-                  No deadlines available yet.
-                </p>
-
-                <p className="text-xs text-slate-400 mt-1">
-                  Event task management is coming soon.
-                </p>
+              <div className="mt-4 rounded-2xl bg-brand-canvas p-4">
+                <p className="text-sm font-medium text-text-primary">No deadlines available yet.</p>
+                <p className="mt-1 text-xs text-text-secondary">Event task management is coming soon.</p>
               </div>
             </div>
 

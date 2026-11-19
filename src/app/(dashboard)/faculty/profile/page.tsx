@@ -90,10 +90,10 @@ export default async function FacultyProfilePage() {
                     const status = request.event?.status ?? request.status;
                     return (
                       <li key={request.id}>
-                        <Link href={`/faculty/events/${request.id}`} className="group flex min-w-0 items-start gap-3 py-3">
+                        <Link href={`/faculty/events/${request.id}`} className="flex min-w-0 items-start gap-3 rounded-lg py-3 no-underline hover:bg-brand-selected hover:no-underline focus:no-underline active:no-underline">
                           <CalendarDays size={17} className="mt-0.5 shrink-0 text-slate-500" aria-hidden="true" />
                           <div className="min-w-0">
-                            <p className="break-words text-sm font-semibold text-slate-900 group-hover:underline">{request.title}</p>
+                            <p className="break-words text-sm font-semibold text-slate-900">{request.title}</p>
                             <span className={`mt-1.5 inline-flex rounded-full px-2 py-0.5 text-xs font-semibold ${getStatusStyle(status)}`}>{getStatusLabel(status)}</span>
                           </div>
                         </Link>

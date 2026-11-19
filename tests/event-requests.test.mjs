@@ -322,10 +322,16 @@ function reviewHarness(status, options = {}) {
   } };
 }
 
-test("dean must start review before a final decision and explain rejection or changes", async () => {
+test("dean can decide a submitted request directly, with a reason required for disapproval", async () => {
   const submitted = reviewHarness("SUBMITTED");
-  assert.equal((await submitted.review("APPROVED_BY_DEAN")).success, false);
-  assert.equal(submitted.updates.length, 0);
+  assert.equal((await submitted.review("APPROVED_BY_DEAN")).success, true);
+  assert.deepEqual(submitted.filters, [["id", proposalId], ["status", "SUBMITTED"]]);
+  const disapproval = reviewHarness("SUBMITTED");
+  assert.equal((await disapproval.review("REJECTED", " ")).success, false);
+  assert.equal((await disapproval.review("REJECTED", "x".repeat(501))).success, false);
+  assert.equal(disapproval.updates.length, 0);
+  assert.equal((await disapproval.review("REJECTED", "Venue unavailable")).success, true);
+  assert.deepEqual(disapproval.updates, [{status:"REJECTED", review_note:"Venue unavailable"}]);
   const reviewing = reviewHarness("UNDER_REVIEW");
   assert.equal((await reviewing.review("CHANGES_REQUESTED")).success, false);
   assert.equal((await reviewing.review("REJECTED")).success, false);

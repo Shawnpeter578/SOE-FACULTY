@@ -1,13 +1,14 @@
-import { requireRole } from "@/lib/auth/guard";
 import { createClient } from "@/lib/supabase/server";
 import RouteRefresh from "@/components/route-refresh";
-import DeanDashboard, { type DashboardActivity, type DashboardItem } from "./dashboard-client";
+import { getDeanAccount } from "../account";
+import { getDeanRecentActivity } from "../recent-activity";
+import DeanDashboard, { type DashboardItem } from "./dashboard-client";
 
 export default async function DeanDashboardPage() {
-  const dean = await requireRole(["DEAN"]);
+  const dean = await getDeanAccount();
   const supabase = await createClient();
 
-  const [proposalResult, eventResult] = await Promise.all([
+  const [proposalResult, eventResult, activities] = await Promise.all([
     supabase
       .from("event_proposals")
       .select("id, title, venue, start_date, end_date, status, created_at, updated_at, created_by, reviewed_by, review_note")
@@ -16,6 +17,7 @@ export default async function DeanDashboardPage() {
       .from("events")
       .select("id, proposal_id, title, venue, start_date, end_date, status, created_at, created_by")
       .order("start_date", { ascending: true }),
+    getDeanRecentActivity(),
   ]);
 
   if (proposalResult.error || eventResult.error) {
@@ -63,25 +65,16 @@ export default async function DeanDashboardPage() {
     reviewNote: null,
   }));
 
-  const activities: DashboardActivity[] = proposals
-    .filter((proposal) => proposal.status !== "DRAFT")
-    .slice(0, 5)
-    .map((proposal) => ({
-      id: proposal.id,
-      title: proposal.title,
-      status: proposal.status,
-      person: names.get(proposal.created_by) ?? "Faculty member",
-      at: proposal.updated_at,
-      href: `/dean/proposals/${proposal.id}`,
-    }));
-
   return (
-    <><RouteRefresh intervalMs={10000} /><DeanDashboard
-      deanId={dean.id}
-      deanName={dean.full_name}
-      proposals={proposalRows}
-      events={eventRows}
-      activities={activities}
-    /></>
+    <>
+      <RouteRefresh intervalMs={10000} />
+      <DeanDashboard
+        deanId={dean.id}
+        deanName={dean.details.fullName}
+        proposals={proposalRows}
+        events={eventRows}
+        activities={activities}
+      />
+    </>
   );
 }
