@@ -25,7 +25,7 @@ export default async function FacultyDashboardPage() {
   }
 
   return (
-    <AppLayout>
+    <AppLayout facultyName={profile.full_name}>
       <DashboardClient
         profile={{ fullName: profile.full_name }}
         proposals={proposalsResult.data ?? []}

@@ -3,6 +3,7 @@
 
 import React, { useMemo, useState } from "react";
 import Link from "next/link";
+import { getStatusLabel, getStatusStyle } from "../events/event-status";
 import {
   Calendar,
   Clock,
@@ -169,41 +170,6 @@ function getEventStages(status: string): Stage[] {
     { label: "Event", status: "upcoming" },
     { label: "Reports", status: "upcoming" },
   ];
-}
-
-function getStatusLabel(status: string) {
-  const labels: Record<string, string> = {
-    DRAFT: "Draft",
-    SUBMITTED: "Submitted",
-    UNDER_REVIEW: "Under review",
-    CHANGES_REQUESTED: "Changes requested",
-    REJECTED: "Rejected",
-    APPROVED_BY_DEAN: "Approved by Dean",
-    AWAITING_VC_DOCUMENT: "Awaiting official letter",
-    OFFICIALLY_APPROVED: "Officially approved",
-  };
-
-  return labels[status] ?? status.replaceAll("_", " ");
-}
-
-function getStatusStyle(status: string) {
-  if (status === "REJECTED") {
-    return "bg-red-50 text-red-700";
-  }
-
-  if (status === "CHANGES_REQUESTED") {
-    return "bg-orange-50 text-orange-700";
-  }
-
-  if (status === "APPROVED_BY_DEAN" || status === "OFFICIALLY_APPROVED") {
-    return "bg-[#ECFDF5] text-[#059669]";
-  }
-
-  if (status === "UNDER_REVIEW") {
-    return "bg-yellow-50 text-yellow-700";
-  }
-
-  return "bg-blue-50 text-blue-700";
 }
 
 export default function DashboardClient({

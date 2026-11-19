@@ -9,6 +9,12 @@ is transactional and preserves existing proposals and events.
 For a new database, apply all migrations in filename order. Do not rerun baseline
 migrations against a database that already contains their tables and policies.
 
+For an existing database, apply `migrations/202611190002_faculty_profiles.sql`
+after the event request migration to enable saving faculty profile details.
+Faculty can update their own name, designation, department, phone, and office.
+The sign-in email comes from Supabase Auth. The employee ID is managed by the
+university in `public.faculty_profile_details`.
+
 Use actual Supabase accounts with the `FACULTY` and `DEAN` roles assigned in
 `public.profiles`. The role selector on the login form does not grant a role.
 The CLI must be signed into an account with access to the same project as

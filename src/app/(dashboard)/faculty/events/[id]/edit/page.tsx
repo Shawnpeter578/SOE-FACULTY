@@ -13,7 +13,7 @@ export default async function EditRequestPage({ params }: { params: Promise<{ id
   if (error) throw new Error("Unable to load your event request.");
   if (!proposal) notFound();
 
-  return <AppLayout><div className="mx-auto max-w-3xl space-y-6">
+  return <AppLayout facultyName={profile.full_name}><div className="mx-auto max-w-3xl space-y-6">
     <Link href={`/faculty/events/${id}`} className="text-sm font-semibold text-brand-primary hover:underline">← View request</Link>
     <h1 className="text-3xl font-bold">Edit event request</h1>
     {proposal.status !== "CHANGES_REQUESTED" ? <p>This request is not currently available for editing.</p> : <>

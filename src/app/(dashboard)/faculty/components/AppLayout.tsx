@@ -1,16 +1,21 @@
 'use client';
 
 import React from 'react';
+import Form from 'next/form';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import RouteRefresh from '@/components/route-refresh';
+import { universityName } from '@/lib/university';
+import { getFacultyInitials } from '../profile/profile-fields';
 import { 
   LayoutGrid, Calendar, FileText, Users, MessageSquare, Wallet, 
-  LineChart, User, ChevronDown, Search, Bell, Plus, ChevronRight
+  LineChart, User, Search, Bell, Plus, ChevronRight
 } from 'lucide-react';
 
-export default function AppLayout({ children }: { children: React.ReactNode }) {
+export default function AppLayout({ children, facultyName }: { children: React.ReactNode; facultyName: string }) {
   const pathname = usePathname();
+  const initials = getFacultyInitials(facultyName);
+  const isCurrent = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
 
   // Update desktopNav paths
   const desktopNav = [
@@ -50,19 +55,17 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
           <div className="p-4">
             <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-2">Workspace</p>
-            <button className="w-full flex items-center justify-between bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm font-semibold hover:bg-slate-100 transition-colors">
-              <span className="truncate mr-2">St Aloysius School of Enginneering</span>
-              <ChevronDown className="w-4 h-4 text-slate-500 flex-shrink-0" />
-            </button>
+            <p className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold leading-snug">{universityName}</p>
           </div>
 
           <nav className="px-3 space-y-1">
             {desktopNav.map((item) => {
-              const active = pathname === item.href;
+              const active = isCurrent(item.href);
               return (
                 <Link 
                   key={item.href} 
                   href={item.href}
+                  aria-current={active ? 'page' : undefined}
                   className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
                     active 
                       ? 'bg-[#EEF2F6] text-[#1A2234] font-semibold' 
@@ -97,38 +100,45 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           </div>
 
           <Link href="/faculty/profile" className="flex items-center gap-3 pt-2">
-            <div className="w-9 h-9 rounded-full bg-[#EEF2F6] text-[#1A2234] flex items-center justify-center font-bold text-sm">
-              AK
+            <div className="w-9 h-9 shrink-0 rounded-full bg-[#EEF2F6] text-[#1A2234] flex items-center justify-center font-bold text-sm" aria-hidden="true">
+              {initials}
             </div>
-            <div>
-              <p className="text-sm font-bold text-[#1A2234]">Dr. Aisha Khan</p>
-              <p className="text-xs text-slate-500">Faculty coordinator</p>
+            <div className="min-w-0">
+              <p className="truncate text-sm font-bold text-[#1A2234]">{facultyName}</p>
+              <p className="text-xs text-slate-500">Faculty</p>
             </div>
           </Link>
         </div>
       </aside>
 
       {/* === MAIN CONTENT CONTAINER === */}
-      <main className="flex-1 flex flex-col h-full relative overflow-hidden">
+      <main className="flex min-w-0 flex-1 flex-col h-full relative overflow-hidden">
         
         {/* Global Desktop Header */}
         <header className="hidden lg:flex h-16 bg-white border-b border-slate-200 items-center justify-between px-8 flex-shrink-0">
-          <div className="relative w-96">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-            <input 
-              type="text" 
-              placeholder="Search events, committees, people..." 
-              className="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-[#1A2234] focus:ring-1 focus:ring-[#1A2234] transition-all"
-            />
-          </div>
+          {pathname === '/faculty/events' ? <div /> : (
+            <Form action="/faculty/events" className="relative w-96" role="search" aria-label="Faculty event search">
+              <input
+                type="search"
+                name="q"
+                maxLength={120}
+                aria-label="Search my events"
+                placeholder="Search my events..."
+                className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-4 pr-10 text-sm transition-all focus:border-[#1A2234] focus:ring-1 focus:ring-[#1A2234] focus:outline-none"
+              />
+              <button type="submit" aria-label="Search" className="absolute inset-y-0 right-0 px-3 text-slate-500 hover:text-slate-900">
+                <Search className="size-4" aria-hidden="true" />
+              </button>
+            </Form>
+          )}
           <div className="flex items-center gap-5 text-sm font-medium text-slate-600">
             <span>Faculty workspace</span>
             <div className="relative cursor-pointer">
               <Bell className="w-5 h-5" />
               <div className="absolute top-0 right-0 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></div>
             </div>
-            <Link href="/faculty/profile" className="w-8 h-8 rounded-full bg-[#EEF2F6] text-[#1A2234] flex items-center justify-center font-bold text-xs">
-              AK
+            <Link href="/faculty/profile" aria-label="Your profile" className="w-8 h-8 rounded-full bg-[#EEF2F6] text-[#1A2234] flex items-center justify-center font-bold text-xs">
+              {initials}
             </Link> 
           </div>
         </header>
@@ -139,21 +149,22 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         </div>
 
         {/* Global Mobile FAB */}
-        <div className="fixed bottom-24 right-4 lg:hidden flex items-end gap-3 z-40 pointer-events-none">
+        {pathname !== '/faculty/events' && pathname !== '/faculty/profile' && <div className="fixed bottom-24 right-4 lg:hidden flex items-end gap-3 z-40 pointer-events-none">
           {/* We keep pointer-events-none on the container so we can click through it, but enable it on the button */}
           <Link href="/faculty/request" aria-label="New event request" className="w-14 h-14 bg-[#1A2234] text-white rounded-full flex items-center justify-center shadow-lg hover:bg-[#111827] active:scale-95 transition-all flex-shrink-0 pointer-events-auto">
             <Plus className="w-6 h-6" />
           </Link>
-        </div>
+        </div>}
 
         {/* Global Mobile Bottom Navigation */}
         <nav className="lg:hidden fixed bottom-0 w-full bg-white border-t border-slate-200 flex justify-between px-6 py-3 pb-safe z-50">
           {mobileNav.map((item) => {
-            const active = pathname === item.href;
+            const active = isCurrent(item.href);
             return (
               <Link 
                 key={item.href}
                 href={item.href}
+                aria-current={active ? 'page' : undefined}
                 className={`flex flex-col items-center gap-1 ${active ? 'text-[#1A2234]' : 'text-slate-400'}`}
               >
                 <item.icon className="w-6 h-6" />

@@ -5,7 +5,7 @@ import RequestForm from "./request-form";
 export default async function NewRequestPage() {
   const profile = await requireRole(["FACULTY"]);
   return (
-    <AppLayout>
+    <AppLayout facultyName={profile.full_name}>
       <RequestForm profile={{ id: profile.id, fullName: profile.full_name }} />
     </AppLayout>
   );
