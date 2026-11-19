@@ -3,6 +3,8 @@
 
 import React, { useMemo, useState } from "react";
 import Link from "next/link";
+import { FacultyNotificationButton, FacultyNotificationPreview } from "../components/FacultyNotifications";
+import { facultyCardClass, facultyPageClass } from "../components/workspace-styles";
 import { getStatusLabel, getStatusStyle } from "../events/event-status";
 import {
   Calendar,
@@ -13,10 +15,7 @@ import {
   Check,
   AlertCircle,
   Plus,
-  Bell,
   X,
-  CheckCircle2,
-  MessageCircle,
 } from "lucide-react";
 
 type StageStatus = "completed" | "current" | "upcoming";
@@ -67,6 +66,8 @@ interface EventItem {
   stages: Stage[];
 }
 
+const dashboardCard = `${facultyCardClass} min-w-0 p-4 sm:p-5`;
+
 const StatCard = ({
   title,
   count,
@@ -78,31 +79,22 @@ const StatCard = ({
   subtitle: string;
   icon: React.ElementType;
 }) => (
-  <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-[0_2px_10px_rgba(0,0,0,0.02)] flex flex-col w-[240px] md:w-auto md:min-w-[200px] flex-shrink-0 md:flex-shrink snap-start hover:shadow-md md:hover:-translate-y-1 transition-all duration-300">
-    <div className="flex justify-between items-start mb-2">
-      <h3 className="text-[15px] font-medium text-slate-500">
-        {title}
-      </h3>
-
-      <div className="p-2 bg-[#F8FAFC] rounded-full text-[#1E2B58] transition-colors">
-        <Icon size={18} />
-      </div>
-    </div>
-
-    <div className="text-[32px] font-bold text-slate-900 mb-1 leading-none">
-      {count}
-    </div>
-
-    <p className="text-[13px] text-slate-500">{subtitle}</p>
+  <div className={`${facultyCardClass} grid min-h-28 min-w-0 grid-cols-[minmax(0,1fr)_auto] content-start items-center gap-x-2 gap-y-1 p-3.5 sm:p-4`}>
+    <h3 className="col-span-2 text-[13px] font-medium leading-4 text-slate-600">{title}</h3>
+    <p className="text-[30px] font-bold leading-none tabular-nums text-slate-900">{count}</p>
+    <span className="flex size-7 items-center justify-center rounded-full bg-slate-50 text-[#1E2B58]">
+      <Icon size={16} aria-hidden="true" />
+    </span>
+    <p className="col-span-2 text-[13px] leading-4 text-slate-600">{subtitle}</p>
   </div>
 );
 
 const PipelineBar = ({ stages }: { stages: Stage[] }) => (
-  <div className="flex gap-1.5 w-full mt-5">
+  <div className="mt-4 grid w-full grid-cols-5 gap-1.5">
     {stages.map((stage, idx) => (
       <div
         key={idx}
-        className="flex-1 flex flex-col items-center gap-1.5"
+        className="flex min-w-0 flex-col items-center gap-1.5 text-center"
       >
         <div
           className={`h-1.5 w-full rounded-full transition-colors duration-500 ${
@@ -115,7 +107,7 @@ const PipelineBar = ({ stages }: { stages: Stage[] }) => (
         />
 
         <span
-          className={`text-[11px] md:text-xs font-bold transition-colors duration-300 ${
+          className={`break-words text-[11px] leading-tight font-bold transition-colors duration-300 ${
             stage.status === "current"
               ? "text-[#1E2B58]"
               : "text-slate-400"
@@ -178,16 +170,6 @@ export default function DashboardClient({
   events,
 }: DashboardProps) {
   const [searchQuery] = useState("");
-
-  // Notifications will be connected when the notifications module exists.
-  const [notifications, setNotifications] = useState<
-    {
-      id: number;
-      title: string;
-      time: string;
-      type: string;
-    }[]
-  >([]);
 
   const dashboardEvents = useMemo<EventItem[]>(() => {
     const proposalItems: EventItem[] = proposals.map((proposal) => {
@@ -270,19 +252,13 @@ export default function DashboardClient({
       event.location.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const removeNotification = (id: number) => {
-    setNotifications((prev) =>
-      prev.filter((notification) => notification.id !== id)
-    );
-  };
-
   const firstName = profile.fullName.trim().split(/\s+/)[0] || "there";
 
   return (
     <>
-      <div className="p-5 md:p-8 max-w-[1200px] mx-auto w-full">
+      <div className={`${facultyPageClass} @container`}>
         {/* Mobile heading */}
-        <div className="flex items-start justify-between lg:hidden mb-8 mt-2 md:mt-0">
+        <div className="flex items-start justify-between gap-3 lg:hidden">
           <div>
             <h1 className="text-[28px] font-extrabold text-[#0F172A] tracking-tight mb-1">
               Good morning, {firstName}
@@ -293,50 +269,24 @@ export default function DashboardClient({
             </p>
           </div>
 
-          <button
-            onClick={() => setNotifications([])}
-            className="relative text-[#1E2B58] p-1 active:scale-90 transition-transform duration-200"
-            aria-label="Clear notifications"
-          >
-            <Bell size={26} strokeWidth={2} />
-
-            {notifications.length > 0 && (
-              <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-[#EF4444] rounded-full border-2 border-[#F8FAFC]" />
-            )}
-          </button>
+          <FacultyNotificationButton />
         </div>
 
         {/* Desktop heading */}
-        <div className="hidden lg:flex items-end justify-between mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-slate-900 mb-1">
+        <div className="hidden flex-wrap items-center justify-between gap-4 lg:flex">
+          <div className="min-w-0">
+            <h1 className="mb-1 break-words text-3xl font-bold tracking-tight text-slate-900">
               Good morning, {firstName}
             </h1>
 
             <p className="text-sm text-slate-500">
               Your faculty workspace
             </p>
-
-            <div className="flex gap-4 mt-3">
-              <Link
-                href="/faculty/events"
-                className="text-sm font-semibold text-[#1E2B58] hover:underline"
-              >
-                My Proposals
-              </Link>
-
-              <Link
-                href="/faculty/request"
-                className="text-sm font-semibold text-[#1E2B58] hover:underline"
-              >
-                Propose an Event
-              </Link>
-            </div>
           </div>
 
           <Link
             href="/faculty/request"
-            className="flex items-center gap-2 bg-[#1E2B58] text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-[#162044] hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0 active:scale-95 transition-all duration-200"
+            className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-xl bg-[#1E2B58] px-4 text-sm font-semibold text-white transition-colors hover:bg-[#162044]"
           >
             <Plus size={18} strokeWidth={2.5} />
             New event request
@@ -344,7 +294,7 @@ export default function DashboardClient({
         </div>
 
         {/* Statistics */}
-        <div className="flex overflow-x-auto lg:grid lg:grid-cols-4 gap-4 md:gap-5 mb-8 pb-4 -mx-5 px-5 lg:mx-0 lg:px-0 hide-scrollbar snap-x snap-mandatory">
+        <section aria-label="Event statistics" className="grid auto-rows-fr grid-cols-2 gap-3 @min-[42rem]:grid-cols-4 sm:gap-4">
           <StatCard
             title="Pending approval"
             count={pendingCount}
@@ -372,27 +322,27 @@ export default function DashboardClient({
             subtitle="Finance module coming soon"
             icon={Receipt}
           />
-        </div>
+        </section>
 
         {/* Main dashboard content */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8 pb-28 md:pb-0">
-          <div className="lg:col-span-2 flex flex-col gap-4 md:gap-5">
-            <div className="flex justify-between items-center mb-1 md:mb-2">
-              <h2 className="text-[22px] font-bold text-slate-900 tracking-tight">
-                {searchQuery ? "Search Results" : "My events"}
-              </h2>
+        <section aria-labelledby="dashboard-events-heading" className="grid items-start gap-x-5 gap-y-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+          <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
+            <h2 id="dashboard-events-heading" className="text-xl font-bold tracking-tight text-slate-900">
+              {searchQuery ? "Search Results" : "My events"}
+            </h2>
 
-              <Link
-                href="/faculty/events"
-                className="text-[15px] font-bold text-[#1E2B58] flex items-center gap-1 active:opacity-70 transition-opacity"
-              >
-                View all {dashboardEvents.length}
-                <ChevronRight size={18} />
-              </Link>
-            </div>
+            <Link
+              href="/faculty/events"
+              className="inline-flex items-center gap-1 text-sm font-semibold text-[#1E2B58] hover:underline"
+            >
+              View all {dashboardEvents.length}
+              <ChevronRight size={18} aria-hidden="true" />
+            </Link>
+          </div>
 
+          <div className="flex min-w-0 flex-col gap-4 lg:col-start-1 lg:row-start-2">
             {filteredEvents.length === 0 ? (
-              <div className="text-center py-10 bg-white rounded-3xl border border-slate-100">
+              <div className={`${facultyCardClass} p-5 text-center sm:p-7`}>
                 <Calendar
                   size={32}
                   className="mx-auto mb-3 text-slate-300"
@@ -418,35 +368,34 @@ export default function DashboardClient({
               filteredEvents.map((event) => (
                 <div
                   key={event.id}
-                  className="bg-white rounded-3xl p-5 md:p-6 border border-slate-100 shadow-[0_2px_15px_rgba(0,0,0,0.03)] lg:hover:-translate-y-1 transition-transform duration-200"
+                  className={`${dashboardCard} transition-colors hover:border-slate-300`}
                 >
-                  <Link href={`/faculty/events/${event.proposalId}`} className="group flex gap-4 md:gap-5 items-start mb-6 rounded-lg">
-                    <div className="bg-[#F8FAFC] p-3 md:p-4 rounded-[18px] min-w-[72px] md:min-w-[80px] text-center">
+                  <Link href={`/faculty/events/${event.proposalId}`} className="group flex items-start gap-3 rounded-lg sm:gap-4">
+                    <div className="w-14 shrink-0 rounded-xl bg-slate-50 p-2.5 text-center sm:w-16 sm:p-3">
                       <div className="text-[13px] font-bold text-[#1E2B58] uppercase tracking-wider">
                         {event.month}
                       </div>
 
-                      <div className="text-[28px] md:text-3xl font-bold text-slate-900 leading-none mt-1">
+                      <div className="mt-1 text-xl font-bold leading-none text-slate-900 sm:text-2xl">
                         {event.day}
                       </div>
                     </div>
 
-                    <div className="flex-1 pt-1 min-w-0">
+                    <div className="min-w-0 flex-1">
                       <div className="flex justify-between items-start gap-2">
-                        <h3 className="font-bold text-slate-900 text-lg md:text-xl tracking-tight">
+                        <h3 className="min-w-0 break-words text-base font-bold tracking-tight text-slate-900">
                           <span className="group-hover:underline">{event.title}</span>
                         </h3>
 
                         <ChevronRight
-                          size={22}
+                          size={18}
                           className="text-slate-400 flex-shrink-0"
                         />
                       </div>
 
-                      <p className="text-[15px] text-slate-500 mt-1 mb-3.5 leading-relaxed">
+                      <p className="mt-1 mb-2 break-words text-sm text-slate-600">
                         {event.dateStr}
-                        <br />
-                        {event.location}
+                        {event.location && ` · ${event.location}`}
                       </p>
 
                       <span
@@ -501,15 +450,15 @@ export default function DashboardClient({
           </div>
 
           {/* Desktop sidebar */}
-          <div className="hidden lg:flex flex-col gap-6">
+          <div className="hidden min-w-0 flex-col gap-4 lg:col-start-2 lg:row-start-2 lg:flex">
             {/* Upcoming deadlines placeholder */}
-            <div className="bg-white rounded-3xl p-7 border border-slate-100 shadow-[0_2px_15px_rgba(0,0,0,0.03)] hover:shadow-md transition-shadow duration-300">
-              <div className="flex justify-between items-center mb-7">
-                <h3 className="font-bold text-xl text-slate-900 tracking-tight">
+            <div className={dashboardCard}>
+              <div className="mb-4 flex items-center justify-between gap-3">
+                <h3 className="text-base font-bold tracking-tight text-slate-900">
                   Upcoming deadlines
                 </h3>
 
-                <Clock size={20} className="text-[#1E2B58]" />
+                <Clock size={18} className="shrink-0 text-[#1E2B58]" aria-hidden="true" />
               </div>
 
               <div className="text-center py-5">
@@ -528,74 +477,9 @@ export default function DashboardClient({
               </div>
             </div>
 
-            {/* Recent notifications */}
-            <div className="bg-white rounded-3xl p-7 border border-slate-100 shadow-[0_2px_15px_rgba(0,0,0,0.03)] hover:shadow-md transition-shadow duration-300">
-              <div className="flex justify-between items-center mb-7">
-                <h3 className="font-bold text-xl text-slate-900 tracking-tight">
-                  Recent notifications
-                </h3>
-
-                {notifications.length > 0 ? (
-                  <span className="text-[13px] font-bold text-[#1E2B58] bg-blue-50/80 px-2.5 py-1 rounded-md">
-                    {notifications.length} new
-                  </span>
-                ) : (
-                  <span className="text-[13px] font-medium text-slate-400">
-                    All caught up
-                  </span>
-                )}
-              </div>
-
-              <div className="space-y-5">
-                {notifications.length === 0 && (
-                  <div className="text-center py-5">
-                    <Bell
-                      size={28}
-                      className="mx-auto mb-3 text-slate-300"
-                    />
-
-                    <p className="text-sm text-slate-500">
-                      No new notifications.
-                    </p>
-                  </div>
-                )}
-
-                {notifications.map((notif) => (
-                  <button
-                    key={notif.id}
-                    type="button"
-                    onClick={() => removeNotification(notif.id)}
-                    className="flex gap-4 text-left w-full cursor-pointer group"
-                  >
-                    <div
-                      className={`mt-0.5 bg-[#F8FAFC] p-2 rounded-full transition-colors flex-shrink-0 ${
-                        notif.type === "success"
-                          ? "group-hover:bg-[#ECFDF5] text-slate-600 group-hover:text-[#059669]"
-                          : "group-hover:bg-blue-50 text-slate-600 group-hover:text-[#1E2B58]"
-                      }`}
-                    >
-                      {notif.type === "success" ? (
-                        <CheckCircle2 size={18} />
-                      ) : (
-                        <MessageCircle size={18} />
-                      )}
-                    </div>
-
-                    <div>
-                      <p className="text-[15px] font-semibold text-[#334155] group-hover:text-slate-900 transition-colors">
-                        {notif.title}
-                      </p>
-
-                      <p className="text-[13px] text-slate-500 mt-1">
-                        {notif.time}
-                      </p>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </div>
+            <FacultyNotificationPreview className={dashboardCard} />
           </div>
-        </div>
+        </section>
       </div>
     </>
   );

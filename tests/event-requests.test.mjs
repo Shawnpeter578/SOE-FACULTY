@@ -30,6 +30,60 @@ const { validateAttachments, MAX_ATTACHMENT_BYTES } = loadSource("src/lib/valida
 const facultyId = "00000000-0000-4000-8000-000000000010";
 const proposalId = "00000000-0000-4000-8000-000000000020";
 
+test("faculty notifications combine owned approval updates and load the full history", async () => {
+  const notificationDirectory = "src/app/(dashboard)/faculty/notifications";
+  const mapper = loadSource(`${notificationDirectory}/notification-items.ts`);
+  const reviews = Array.from({ length: 205 }, (_, index) => ({
+    id: `review-${index}`, proposal_id: proposalId, action: "UNDER_REVIEW", note: null,
+    created_at: new Date(Date.UTC(2026, 10, 19, 8, 0, 205 - index)).toISOString(),
+    proposal: { title: "Workshop", created_by: facultyId },
+  }));
+  const ownerFilters = [];
+  let missingVcColumns = false;
+  const event = { id: "event", proposal_id: proposalId, title: "Workshop", vc_decision: "APPROVED", vc_note: "Approved", vc_decided_at: "2026-11-19T09:00:00Z", vc_document_uploaded_at: "2026-11-19T10:00:00Z" };
+  const supabase = {
+    from(table) {
+      let columns = "";
+      let from = 0;
+      let to = 0;
+      const query = {
+        select(value) { columns = value; return query; },
+        eq(column, value) { ownerFilters.push([column, value]); return query; },
+        order() { return query; },
+        not() { return query; },
+        range(start, end) { from = start; to = end; return query; },
+        async overrideTypes() {
+          if (table === "proposal_reviews") return { data: reviews.slice(from, to + 1), error: null };
+          if (columns.includes("vc_decision") && missingVcColumns) return { data: null, error: { code: "42703" } };
+          return { data: from === 0 ? [event] : [], error: null };
+        },
+      };
+      return query;
+    },
+  };
+  const { GET } = loadSource(`${notificationDirectory}/route.ts`, {
+    "./notification-items": mapper,
+    "@/lib/auth/guard": { requireRole: async (roles) => { assert.deepEqual(roles, ["FACULTY"]); return { id: facultyId }; } },
+    "@/lib/supabase/server": { createClient: async () => supabase },
+  });
+  const recentResponse = await GET(new Request("https://example.test/faculty/notifications"));
+  assert.equal(recentResponse.headers.get("Cache-Control"), "private, no-store");
+  const recent = await recentResponse.json();
+  assert.equal(recent.items.length, 5);
+  assert.deepEqual(recent.items.slice(0, 2).map((item) => item.id), ["document:event", "vc:event"]);
+  assert.ok(ownerFilters.some(([field]) => field === "proposal.created_by"));
+  assert.ok(ownerFilters.some(([field]) => field === "created_by"));
+  assert.ok(ownerFilters.every(([, id]) => id === facultyId));
+
+  missingVcColumns = true;
+  const allResponse = await GET(new Request("https://example.test/faculty/notifications?view=all"));
+  const all = await allResponse.json();
+  assert.equal(all.items.length, 206);
+  assert.equal(all.items[0].id, "document:event");
+  assert.equal(all.items.at(-1).id, "dean:review-204");
+});
+
+
 function approvalForm(action, fields = {}) {
   const data = new FormData();
   data.set("action", action);

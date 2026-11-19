@@ -7,9 +7,10 @@ import { usePathname } from 'next/navigation';
 import RouteRefresh from '@/components/route-refresh';
 import { universityName } from '@/lib/university';
 import { getFacultyInitials } from '../profile/profile-fields';
+import { FacultyNotifications, FacultyNotificationButton } from './FacultyNotifications';
 import { 
   LayoutGrid, Calendar, FileText, Users, MessageSquare, Wallet, 
-  LineChart, User, Search, Bell, Plus, ChevronRight
+  LineChart, User, Search, Plus, ChevronRight
 } from 'lucide-react';
 
 export default function AppLayout({ children, facultyName, refreshIntervalMs }: { children: React.ReactNode; facultyName: string; refreshIntervalMs?: number }) {
@@ -38,7 +39,7 @@ export default function AppLayout({ children, facultyName, refreshIntervalMs }: 
     { href: '/faculty/profile', label: 'Profile', icon: User },
   ];
 
-  return (
+  const workspace = (
     <div className="flex h-screen bg-[#F4F7F9] font-sans text-slate-900 overflow-hidden">
       {pathname !== '/faculty/request' && <RouteRefresh intervalMs={refreshIntervalMs} />}
       
@@ -134,10 +135,7 @@ export default function AppLayout({ children, facultyName, refreshIntervalMs }: 
           )}
           <div className="flex items-center gap-5 text-sm font-medium text-slate-600">
             <span>Faculty workspace</span>
-            <div className="relative cursor-pointer">
-              <Bell className="w-5 h-5" />
-              <div className="absolute top-0 right-0 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></div>
-            </div>
+            <FacultyNotificationButton />
             <Link href="/faculty/profile" aria-label="Your profile" className="w-8 h-8 rounded-full bg-[#EEF2F6] text-[#1A2234] flex items-center justify-center font-bold text-xs">
               {initials}
             </Link> 
@@ -178,4 +176,5 @@ export default function AppLayout({ children, facultyName, refreshIntervalMs }: 
       </main>
     </div>
   );
+  return <FacultyNotifications>{workspace}</FacultyNotifications>;
 }
