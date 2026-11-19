@@ -33,7 +33,7 @@ export default function DeanWorkspace({ name, activity, children }: { name: stri
   const initials = workspaceInitials(name, "D");
 
   return (
-    <div className="min-h-screen bg-brand-canvas text-text-primary lg:grid lg:grid-cols-[16.25rem_minmax(0,1fr)]">
+    <div data-dean-workspace className="min-h-screen bg-brand-canvas text-text-primary lg:grid lg:grid-cols-[16.25rem_minmax(0,1fr)]">
       <aside className="sticky top-0 hidden h-screen min-w-0 flex-col overflow-y-auto border-r border-brand-border bg-brand-surface lg:flex">
         <Link href="/dean/dashboard" className="flex h-16 shrink-0 items-center gap-2 border-b border-brand-border px-6 text-xl font-bold text-brand-primary hover:bg-brand-border">
           <span className="flex size-6 items-center justify-center rounded-md bg-brand-primary text-white"><CalendarDays size={16} aria-hidden="true" /></span>

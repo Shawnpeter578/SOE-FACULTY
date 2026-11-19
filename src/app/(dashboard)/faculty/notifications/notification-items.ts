@@ -31,6 +31,7 @@ export type ViceChancellorDecision = {
 };
 
 export type ApprovalDocument = { id: string; proposal_id: string; title: string; vc_document_uploaded_at: string };
+export type PrintedLetter = { id: string; proposal_id: string; title: string; letter_printed_at: string };
 
 const deanUpdates: Record<string, Pick<FacultyNotification, "message" | "tone">> = {
   UNDER_REVIEW: { message: "The Dean started reviewing your request", tone: "neutral" },
@@ -39,7 +40,7 @@ const deanUpdates: Record<string, Pick<FacultyNotification, "message" | "tone">>
   APPROVED_BY_DEAN: { message: "The Dean approved your request", tone: "positive" },
 };
 
-export function getNotificationItems(reviews: DeanReview[], decisions: ViceChancellorDecision[], documents: ApprovalDocument[]) {
+export function getNotificationItems(reviews: DeanReview[], letters: PrintedLetter[], decisions: ViceChancellorDecision[], documents: ApprovalDocument[]) {
   const items: FacultyNotification[] = reviews.map((review) => ({
     id: `dean:${review.id}`,
     proposalId: review.proposal_id,
@@ -48,6 +49,17 @@ export function getNotificationItems(reviews: DeanReview[], decisions: ViceChanc
     at: review.created_at,
     ...(deanUpdates[review.action] ?? { message: "The Dean updated your request", tone: "neutral" }),
   }));
+  for (const letter of letters) {
+    items.push({
+      id: `printed:${letter.id}`,
+      proposalId: letter.proposal_id,
+      title: letter.title,
+      message: "Your request letter was printed for VC review",
+      note: null,
+      at: letter.letter_printed_at,
+      tone: "neutral",
+    });
+  }
   for (const decision of decisions) {
     if (!decision.vc_decision) continue;
     const approved = decision.vc_decision === "APPROVED";

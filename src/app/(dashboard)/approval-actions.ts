@@ -79,6 +79,7 @@ export async function advanceApproval(proposalId: string, _previous: ApprovalSta
   revalidatePath(`/faculty/events/${proposalId}`);
   revalidatePath(`/faculty/events/${proposalId}/letter`);
   revalidatePath(`/dean/proposals/${proposalId}`);
+  revalidatePath(`/dean/proposals/${proposalId}/letter`);
   revalidatePath("/dean/proposals");
   revalidatePath("/faculty/events");
   revalidatePath("/faculty/dashboard");

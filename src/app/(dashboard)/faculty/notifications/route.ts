@@ -1,6 +1,6 @@
 import { requireRole } from "@/lib/auth/guard";
 import { createClient } from "@/lib/supabase/server";
-import { getNotificationItems, recentNotificationCount, type ApprovalDocument, type DeanReview, type ViceChancellorDecision } from "./notification-items";
+import { getNotificationItems, recentNotificationCount, type ApprovalDocument, type DeanReview, type PrintedLetter, type ViceChancellorDecision } from "./notification-items";
 
 type ReadResult<T> = { data: T[] | null; error: { code: string } | null };
 const headers = { "Cache-Control": "private, no-store" };
@@ -26,11 +26,16 @@ export async function GET(request: Request) {
   const all = new URL(request.url).searchParams.get("view") === "all";
 
   try {
-    const [reviews, decisions, documents] = await Promise.all([
+    const [reviews, letters, decisions, documents] = await Promise.all([
       readUpdates<DeanReview>((from, to) => supabase.from("proposal_reviews")
         .select("id, proposal_id, action, note, created_at, proposal:event_proposals!inner(title, created_by)")
         .eq("proposal.created_by", faculty.id).order("created_at", { ascending: false }).order("id", { ascending: true })
         .range(from, to).overrideTypes<DeanReview[], { merge: false }>(), all),
+      readUpdates<PrintedLetter>((from, to) => supabase.from("events")
+        .select("id, proposal_id, title, letter_printed_at")
+        .eq("created_by", faculty.id).not("letter_printed_at", "is", null)
+        .order("letter_printed_at", { ascending: false }).order("id", { ascending: true })
+        .range(from, to).overrideTypes<PrintedLetter[], { merge: false }>(), all, true),
       readUpdates<ViceChancellorDecision>((from, to) => supabase.from("events")
         .select("id, proposal_id, title, vc_decision, vc_note, vc_decided_at")
         .eq("created_by", faculty.id).not("vc_decided_at", "is", null)
@@ -42,7 +47,7 @@ export async function GET(request: Request) {
         .order("vc_document_uploaded_at", { ascending: false }).order("id", { ascending: true })
         .range(from, to).overrideTypes<ApprovalDocument[], { merge: false }>(), all),
     ]);
-    const items = getNotificationItems(reviews, decisions, documents);
+    const items = getNotificationItems(reviews, letters, decisions, documents);
     return Response.json({ facultyId: faculty.id, items: all ? items : items.slice(0, recentNotificationCount) }, { headers });
   } catch (error) {
     console.error("Unable to load faculty notifications:", error);

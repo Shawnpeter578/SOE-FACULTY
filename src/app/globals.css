@@ -1,5 +1,39 @@
 @import "tailwindcss";
 
+@page event-request-letter {
+  size: A4;
+  margin: 14mm;
+}
+
+@media print {
+  body:has(.request-letter) {
+    display: block;
+    min-height: 0;
+    background: white;
+  }
+
+  body:has(.request-letter) [data-dean-workspace],
+  body:has(.request-letter) [data-dean-workspace] > div {
+    display: block;
+    min-height: 0;
+    background: white;
+  }
+
+  body:has(.request-letter) [data-dean-workspace] > aside,
+  body:has(.request-letter) [data-dean-workspace] > div > :is(header, nav) {
+    display: none;
+  }
+
+  body:has(.request-letter) [data-dean-workspace] main {
+    padding: 0;
+  }
+
+  .request-letter {
+    page: event-request-letter;
+    zoom: 1 !important;
+  }
+}
+
 :root {
   --background: #ffffff;
   --foreground: #171717;

@@ -113,6 +113,7 @@ export async function reviewProposal(
 
   revalidatePath("/dean/proposals");
   revalidatePath(`/dean/proposals/${proposalId}`);
+  revalidatePath(`/dean/proposals/${proposalId}/letter`);
   revalidatePath("/faculty/dashboard");
   revalidatePath("/faculty/events");
   revalidatePath(`/faculty/events/${proposalId}`);

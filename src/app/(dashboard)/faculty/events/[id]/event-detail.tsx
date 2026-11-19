@@ -44,7 +44,7 @@ export default function EventDetail({ proposal, event, facultyName, attachments,
     { label: "VC decision", date: event?.vc_decided_at, done: event?.vc_decision === "APPROVED", denied: vcRejected, detail: vcRejected ? "VC disapproved · Event closed." : "Approved by the Vice-Chancellor." },
     { label: "Soft copy uploaded and locked", date: event?.vc_document_uploaded_at, done: Boolean(approved && event?.vc_approval_document_path), detail: "Signed approval stored and locked." },
   ];
-  const currentStep = closed || approved ? -1 : action === "generate" ? 2 : action === "details" ? 3 : action === "print" ? 4
+  const currentStep = closed || approved ? -1 : action === "generate" || action === "sign" ? 2 : action === "details" ? 3 : action === "print" ? 4
     : event?.vc_decision === "APPROVED" ? 6 : event?.letter_printed_at ? 5 : proposal.status === "DRAFT" ? 0 : deanApproved ? -1 : 1;
 
   return (
@@ -76,6 +76,7 @@ export default function EventDetail({ proposal, event, facultyName, attachments,
                       : approved ? "The approval journey is complete."
                       : changesRequested ? "Review the remarks, edit the request, and resubmit it."
                       : action === "generate" ? "Next, generate your request letter for VC review."
+                      : action === "sign" ? "The letter needs both e-signatures before it can be printed."
                       : action === "details" ? "Next, record your budget and event requirements."
                       : action === "print" ? "Next, print the request letter and confirm that it was printed."
                       : event?.vc_decision === "APPROVED" ? "Waiting for the Dean to upload and lock the signed approval."
@@ -84,7 +85,7 @@ export default function EventDetail({ proposal, event, facultyName, attachments,
                   </p>
                 </div>
               </div>
-              {action === "generate" && <ApprovalControls mode="generate" proposalId={proposal.id} />}
+              {deanApproved && event && action !== "print" && <Link href={`/faculty/events/${proposal.id}/letter`} className="rounded-xl bg-brand-primary px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-hover">{event.letter_generated_at ? "Open request letter" : "Generate request letter"}</Link>}
               {changesRequested && <Link href={`/faculty/events/${proposal.id}/edit`} className="rounded-xl bg-brand-primary px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-hover">Edit and resubmit</Link>}
               {approved && approvalUrl && <a href={approvalUrl} className="rounded-xl bg-brand-primary px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-hover">Download signed approval</a>}
             </div>
@@ -127,8 +128,7 @@ export default function EventDetail({ proposal, event, facultyName, attachments,
               <Info label="Duration" value={proposal.duration} />
               <Info label="Special requirements" value={event?.review_requirements ?? proposal.special_requirements} />
               {(action === "details" || action === "print") && <div className="mt-4 border-t border-brand-border pt-4"><ApprovalControls key={action} mode={action} proposalId={proposal.id} budget={budget} requirements={event?.review_requirements ?? proposal.special_requirements} /></div>}
-              {action === "print" && <details className="mt-3 text-sm text-brand-primary"><summary className="cursor-pointer font-semibold">Edit budget and requirements</summary><div className="mt-3"><ApprovalControls mode="details" proposalId={proposal.id} budget={budget} requirements={event?.review_requirements} /></div></details>}
-              {event?.letter_generated_at && action !== "print" && <Link href={`/faculty/events/${proposal.id}/letter`} className="mt-3 inline-block text-sm font-semibold text-brand-primary hover:underline">View request letter</Link>}
+              {(action === "sign" || action === "print") && <details className="mt-3 text-sm text-brand-primary"><summary className="cursor-pointer font-semibold">Edit budget and requirements</summary><p className="mt-2 text-xs text-text-secondary">Changes require both signatures again.</p><div className="mt-3"><ApprovalControls mode="details" proposalId={proposal.id} budget={budget} requirements={event?.review_requirements} /></div></details>}
             </section>
 
             <section className={panel}>

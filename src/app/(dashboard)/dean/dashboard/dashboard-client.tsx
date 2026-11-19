@@ -278,7 +278,8 @@ export default function DeanDashboard({
                         <CalendarDays size={16} className="shrink-0 text-slate-500" aria-hidden="true" />{formatDate(item.startDate)}
                       </div>
                       <div><StatusPill status={item.status} /></div>
-                      <div className="@min-[40rem]:text-right">
+                      <div className="flex flex-wrap items-center gap-2 @min-[40rem]:justify-end">
+                        {item.kind === "event" && <Link href={`${item.href}/letter`} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-brand-border px-3 text-sm font-semibold text-brand-primary hover:bg-brand-selected"><FileText size={16} aria-hidden="true" /> Request letter</Link>}
                         <Link href={item.href} aria-label={`${item.kind === "proposal" ? "Review" : "View"} ${item.title}`} className={actionClass}>
                           {item.kind === "proposal" ? "Review" : "View"} <ArrowRight size={16} aria-hidden="true" />
                         </Link>

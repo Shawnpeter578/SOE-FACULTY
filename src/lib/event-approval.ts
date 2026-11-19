@@ -10,6 +10,10 @@ export type ApprovalEvent = {
   status: string;
   letter_generated_at?: string | null;
   letter_faculty_name?: string | null;
+  letter_faculty_signed_at?: string | null;
+  letter_dean_name?: string | null;
+  letter_dean_signed_at?: string | null;
+  letter_event_details?: LetterEventDetails | null;
   review_budget?: number | null;
   review_requirements?: string | null;
   review_details_at?: string | null;
@@ -19,9 +23,28 @@ export type ApprovalEvent = {
   vc_decided_at?: string | null;
   vc_document_uploaded_at?: string | null;
   vc_approval_document_path?: string | null;
+  vc_rejection_proof_path?: string | null;
+  vc_recorded_at?: string | null;
+  vc_recorded_by_name?: string | null;
+  vc_recorded_file_name?: string | null;
+};
+
+export type LetterEventDetails = {
+  department?: string | null;
+  startTime?: string | null;
+  endTime?: string | null;
+  duration?: string | null;
+  participants?: number | null;
+  audience?: string | null;
+  objectives?: string | null;
 };
 
 export const EVENT_DOCUMENT_BUCKET = "event-documents";
+
+export function vcApprovalFileName(event: ApprovalEvent) {
+  const extension = event.vc_approval_document_path?.split(".").pop() ?? "pdf";
+  return `VC approval.${extension}`;
+}
 
 const date = new Intl.DateTimeFormat("en-IN", { dateStyle: "medium", timeZone: "UTC" });
 const approvalDate = new Intl.DateTimeFormat("en-IN", { dateStyle: "medium", timeZone: "Asia/Kolkata" });
@@ -39,6 +62,7 @@ export function getFacultyApprovalAction(event: ApprovalEvent | null) {
   if (!event || event.status !== "AWAITING_VC_DOCUMENT" || !("letter_generated_at" in event)) return null;
   if (!event.letter_generated_at) return "generate";
   if (!event.review_details_at) return "details";
+  if (!event.letter_printed_at && (!event.letter_faculty_signed_at || !event.letter_dean_signed_at)) return "sign";
   if (!event.letter_printed_at) return "print";
   return null;
 }

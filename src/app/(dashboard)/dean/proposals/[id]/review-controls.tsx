@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { CheckCircle2, CircleX, Send, X } from "lucide-react";
 import { reviewProposal, type ReviewState } from "./actions";
 
@@ -15,6 +16,7 @@ export default function ReviewControls({ proposalId, status, title, facultyName,
   facultyName: string;
   dates: string;
 }) {
+  const router = useRouter();
   const dialog = useRef<HTMLDialogElement>(null);
   const [decision, setDecision] = useState<Decision | null>(null);
   const [notice, setNotice] = useState<{ title: string; message: string } | null>(null);
@@ -31,6 +33,7 @@ export default function ReviewControls({ proposalId, status, title, facultyName,
       message: result.message ?? "",
     });
     dialog.current?.close();
+    if (decision === "APPROVED_BY_DEAN") router.push(`/dean/proposals/${proposalId}/letter`);
   }
 
   return (
@@ -43,7 +46,7 @@ export default function ReviewControls({ proposalId, status, title, facultyName,
         </div>
       )}
       {(canDecide || status === "CHANGES_REQUESTED") && (
-        <footer className="sticky bottom-14 z-20 mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-brand-border bg-white px-4 py-3 shadow-[0_-4px_14px_rgba(21,41,97,0.05)] sm:px-5 lg:bottom-0">
+        <footer className="sticky bottom-14 z-20 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-brand-border bg-brand-surface px-4 py-2.5 shadow-sm lg:bottom-0">
           <div><p className="text-sm font-semibold text-brand-primary">{canDecide ? "Ready for your decision" : "Changes requested"}</p><p className="mt-0.5 text-xs text-text-secondary">{canDecide ? "Dean approval enables the letter. VC approval is still required." : "Review the request again when it is ready."}</p></div>
           <div className="flex flex-wrap items-center gap-2.5">
             {status === "UNDER_REVIEW" && <button type="button" onClick={() => setDecision("CHANGES_REQUESTED")} className="min-h-10 px-2 text-sm font-semibold text-brand-primary hover:underline">Request changes</button>}
@@ -99,7 +102,7 @@ function DecisionForm({ decision, proposalId, title, facultyName, dates, onCompl
         <button type="button" disabled={pending} onClick={onCancel} aria-label="Close decision dialog" className="rounded-lg p-2 text-text-secondary hover:bg-brand-canvas"><X size={18} /></button>
       </div>
       <h2 id="dean-decision-title" className="mt-4 text-xl font-bold tracking-tight">{rejected ? "Disapprove this request?" : approved ? "Approve this request?" : needsNote ? "Request changes?" : "Resume review?"}</h2>
-      <p className="mt-2 text-sm text-text-secondary">{rejected ? `Disapproval closes the event. Your reason will be shared with ${facultyName}.` : approved ? `Approval allows ${facultyName} to prepare the request letter. VC approval is still required.` : "The request status will be updated for the faculty."}</p>
+      <p className="mt-2 text-sm text-text-secondary">{rejected ? `Disapproval closes the event. Your reason will be shared with ${facultyName}.` : approved ? `Approval opens the request letter for you and ${facultyName} to sign. VC approval is still required.` : "The request status will be updated for the faculty."}</p>
       <div className="mt-4 rounded-xl bg-brand-canvas px-4 py-3">
         <p className="break-words text-sm font-semibold">{title}</p>
         <p className="mt-1 text-xs text-text-secondary">{facultyName} · {dates}</p>

@@ -40,7 +40,7 @@ test("faculty notifications combine owned approval updates and load the full his
   }));
   const ownerFilters = [];
   let missingVcColumns = false;
-  const event = { id: "event", proposal_id: proposalId, title: "Workshop", vc_decision: "APPROVED", vc_note: "Approved", vc_decided_at: "2026-11-19T09:00:00Z", vc_document_uploaded_at: "2026-11-19T10:00:00Z" };
+  const event = { id: "event", proposal_id: proposalId, title: "Workshop", letter_printed_at: "2026-11-19T08:30:00Z", vc_decision: "APPROVED", vc_note: "Approved", vc_decided_at: "2026-11-19T09:00:00Z", vc_document_uploaded_at: "2026-11-19T10:00:00Z" };
   const supabase = {
     from(table) {
       let columns = "";
@@ -54,7 +54,7 @@ test("faculty notifications combine owned approval updates and load the full his
         range(start, end) { from = start; to = end; return query; },
         async overrideTypes() {
           if (table === "proposal_reviews") return { data: reviews.slice(from, to + 1), error: null };
-          if (columns.includes("vc_decision") && missingVcColumns) return { data: null, error: { code: "42703" } };
+          if (missingVcColumns && (columns.includes("vc_decision") || columns.includes("letter_printed_at"))) return { data: null, error: { code: "42703" } };
           return { data: from === 0 ? [event] : [], error: null };
         },
       };
@@ -70,7 +70,7 @@ test("faculty notifications combine owned approval updates and load the full his
   assert.equal(recentResponse.headers.get("Cache-Control"), "private, no-store");
   const recent = await recentResponse.json();
   assert.equal(recent.items.length, 5);
-  assert.deepEqual(recent.items.slice(0, 2).map((item) => item.id), ["document:event", "vc:event"]);
+  assert.deepEqual(recent.items.slice(0, 3).map((item) => item.id), ["document:event", "vc:event", "printed:event"]);
   assert.ok(ownerFilters.some(([field]) => field === "proposal.created_by"));
   assert.ok(ownerFilters.some(([field]) => field === "created_by"));
   assert.ok(ownerFilters.every(([, id]) => id === facultyId));
@@ -90,6 +90,27 @@ function approvalForm(action, fields = {}) {
   for (const [name, value] of Object.entries(fields)) data.set(name, value);
   return data;
 }
+
+test("request letter signatures require consent and send the signed revision without a client-supplied name", async () => {
+  const calls = [];
+  const refreshed = [];
+  const { updateRequestLetter } = loadSource("src/app/(dashboard)/request-letter-actions.ts", {
+    "next/cache": { revalidatePath: (route) => refreshed.push(route) },
+    "@/lib/auth/guard": { requireRole: async (roles) => assert.deepEqual(roles, ["FACULTY", "DEAN"]) },
+    "@/lib/supabase/server": { createClient: async () => ({ rpc: async (...args) => { calls.push(args); return { error: null }; } }) },
+  });
+  const initial = { message: "", success: false };
+  assert.equal((await updateRequestLetter(proposalId, initial, approvalForm("sign_letter"))).success, false);
+  assert.equal((await updateRequestLetter(proposalId, initial, approvalForm("sign_letter", { consent: "yes", detailsAt: "invalid" }))).success, false);
+  assert.equal(calls.length, 0);
+  const detailsAt = "2026-11-19T11:25:00.123456+00:00";
+  assert.equal((await updateRequestLetter(proposalId, initial, approvalForm("sign_letter", { consent: "yes", detailsAt, name: "Another person" }))).success, true);
+  assert.deepEqual(calls[0], ["update_request_letter", {
+    p_proposal_id: proposalId, p_action: "sign_letter", p_expected_details_at: detailsAt,
+  }]);
+  assert.ok(refreshed.includes(`/dean/proposals/${proposalId}/letter`));
+  assert.ok(refreshed.includes(`/faculty/events/${proposalId}/letter`));
+});
 
 test("approval actions validate stage input before committing changes", async () => {
   const roles = [];

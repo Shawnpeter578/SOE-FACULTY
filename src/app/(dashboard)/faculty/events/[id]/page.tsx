@@ -3,7 +3,7 @@ import { z } from "zod";
 import { requireRole } from "@/lib/auth/guard";
 import { createClient } from "@/lib/supabase/server";
 import { signProposalAttachments } from "@/lib/supabase/proposal-attachments";
-import { EVENT_DOCUMENT_BUCKET, type ApprovalEvent } from "@/lib/event-approval";
+import { EVENT_DOCUMENT_BUCKET, vcApprovalFileName, type ApprovalEvent } from "@/lib/event-approval";
 import EventDetail from "./event-detail";
 
 export default async function FacultyRequestDetailsPage({ params }: { params: Promise<{ id: string }> }) {
@@ -22,7 +22,7 @@ export default async function FacultyRequestDetailsPage({ params }: { params: Pr
   const [attachments, document] = await Promise.all([
     signProposalAttachments(supabase, proposal.attachments),
     event?.vc_approval_document_path
-      ? supabase.storage.from(EVENT_DOCUMENT_BUCKET).createSignedUrl(event.vc_approval_document_path, 3600, { download: "VC approval.pdf" })
+      ? supabase.storage.from(EVENT_DOCUMENT_BUCKET).createSignedUrl(event.vc_approval_document_path, 3600, { download: vcApprovalFileName(event) })
       : null,
   ]);
 

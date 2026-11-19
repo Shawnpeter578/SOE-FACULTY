@@ -10,14 +10,13 @@ const initialState = { message: "", success: false };
 
 export default function ApprovalControls({ proposalId, mode, budget, requirements }: {
   proposalId: string;
-  mode: "generate" | "details" | "print" | "vc" | "lock";
+  mode: "details" | "print" | "vc" | "lock";
   budget?: number | null;
   requirements?: string | null;
 }) {
   const [state, submit, pending] = useActionState(advanceApproval.bind(null, proposalId), initialState);
   return (
     <form action={submit} className="space-y-3">
-      {mode === "generate" && <button name="action" value="generate_letter" disabled={pending} className={button}>Generate request letter</button>}
       {mode === "details" && (
         <>
           <div className="grid gap-3 sm:grid-cols-2">
