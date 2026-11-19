@@ -15,6 +15,10 @@ Faculty can update their own name, designation, department, phone, and office.
 The sign-in email comes from Supabase Auth. The employee ID is managed by the
 university in `public.faculty_profile_details`.
 
+Apply `migrations/202611190003_event_approval_journey.sql` to enable the letter
+and Vice-Chancellor workflow for existing and new requests. Use separate
+accounts with the `FACULTY`, `DEAN`, and `VC` roles assigned in `public.profiles`.
+
 Use actual Supabase accounts with the `FACULTY` and `DEAN` roles assigned in
 `public.profiles`. The role selector on the login form does not grant a role.
 The CLI must be signed into an account with access to the same project as
@@ -36,6 +40,14 @@ The CLI must be signed into an account with access to the same project as
 5. Start the review before approving, rejecting, or requesting changes. Decisions
    and feedback appear in the faculty workspace. Approval creates the official
    event through the existing database trigger.
+6. As faculty, open the Dean-approved request from My Events or the dashboard.
+   Generate the letter, save the budget and requirements, open the printable
+   letter, then confirm it was printed. The request appears in the VC dashboard.
+7. As VC, open the letter and approve or decline the request. A reason is
+   required to decline. Faculty and Dean can see the decision and remarks.
+8. If approved by VC, the Dean uploads and locks the signed PDF on the Dean
+   proposal detail page. The faculty detail page shows the final approval and
+   provides a private download. Locked files cannot be replaced through the app.
 
 **Save draft** stores text on the current device for the signed-in faculty
 account. New requests start blank. Select **Load saved draft** to resume and

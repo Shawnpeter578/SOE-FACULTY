@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
-import { PROPOSAL_ATTACHMENT_BUCKET, type ProposalAttachment } from "@/lib/validation/proposal-attachments";
+import { signProposalAttachments } from "@/lib/supabase/proposal-attachments";
 
-type Proposal = {
+export type Proposal = {
   title: string;
   description: string;
   objectives: string | null;
@@ -24,13 +24,7 @@ type Proposal = {
 
 export default async function ProposalDetails({ proposal, facultyName }: { proposal: Proposal; facultyName: string }) {
   const supabase = await createClient();
-  const attachments: ProposalAttachment[] = Array.isArray(proposal.attachments)
-    ? proposal.attachments.filter((item): item is ProposalAttachment => item && typeof item.name === "string" && typeof item.path === "string" && typeof item.size === "number")
-    : [];
-  const links = await Promise.all(attachments.map(async (attachment) => {
-    const { data } = await supabase.storage.from(PROPOSAL_ATTACHMENT_BUCKET).createSignedUrl(attachment.path, 3600, { download: attachment.name });
-    return { ...attachment, url: data?.signedUrl };
-  }));
+  const links = await signProposalAttachments(supabase, proposal.attachments);
   const budget = proposal.estimated_budget == null ? "Not specified" : new Intl.NumberFormat("en-IN", {
     style: "currency", currency: "INR", maximumFractionDigits: 2,
   }).format(proposal.estimated_budget);

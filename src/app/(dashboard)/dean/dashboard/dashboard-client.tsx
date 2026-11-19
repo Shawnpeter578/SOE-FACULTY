@@ -136,6 +136,7 @@ const statusColors: Record<string, string> = {
   UNDER_REVIEW: "bg-yellow-50 text-yellow-800",
   AWAITING_VC_DOCUMENT: "bg-yellow-50 text-yellow-800",
   REJECTED: "bg-red-50 text-red-700",
+  REJECTED_BY_VC: "bg-red-50 text-red-700",
 };
 
 const requestsPerPage = 5;
@@ -205,7 +206,7 @@ export default function DeanDashboard({
     review: proposals.filter((item) => item.status === "UNDER_REVIEW"),
     vc: events.filter((item) => item.status === "AWAITING_VC_DOCUMENT"),
     approved: events.filter((item) => item.status === "OFFICIALLY_APPROVED"),
-    closed: proposals.filter((item) => item.status === "REJECTED"),
+    closed: [...proposals.filter((item) => item.status === "REJECTED"), ...events.filter((item) => item.status === "REJECTED_BY_VC")],
   };
 
   const selectedItems = groups[activeTab];
@@ -540,6 +541,7 @@ function statusLabel(status: string) {
     OFFICIALLY_APPROVED: "Event officially approved",
     AWAITING_VC_DOCUMENT: "Awaiting VC document",
     REJECTED: "Request closed",
+    REJECTED_BY_VC: "VC disapproved",
   };
   return labels[status] ?? status.replaceAll("_", " ").toLocaleLowerCase();
 }

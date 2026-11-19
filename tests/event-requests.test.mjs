@@ -29,6 +29,66 @@ const { eventRequestSchema } = loadSource("src/lib/validation/event-proposal.ts"
 const { validateAttachments, MAX_ATTACHMENT_BYTES } = loadSource("src/lib/validation/proposal-attachments.ts");
 const facultyId = "00000000-0000-4000-8000-000000000010";
 const proposalId = "00000000-0000-4000-8000-000000000020";
+
+function approvalForm(action, fields = {}) {
+  const data = new FormData();
+  data.set("action", action);
+  for (const [name, value] of Object.entries(fields)) data.set(name, value);
+  return data;
+}
+
+test("approval actions validate stage input before committing changes", async () => {
+  const roles = [];
+  const calls = [];
+  const revalidated = [];
+  const { advanceApproval } = loadSource("src/app/(dashboard)/approval-actions.ts", {
+    "next/cache": { revalidatePath: (route) => revalidated.push(route) },
+    "@/lib/auth/guard": { requireRole: async (allowed) => roles.push(...allowed) },
+    "@/lib/supabase/server": { createClient: async () => ({ rpc: async (name, args) => { calls.push({ name, args }); return { error: null }; } }) },
+  });
+  const initial = { message: "", success: false };
+  const invalid = await advanceApproval(proposalId, initial, approvalForm("save_details", { budget: "-10", requirements: "Room" }));
+  const refusalWithoutReason = await advanceApproval(proposalId, initial, approvalForm("vc_reject", { note: "  " }));
+  assert.equal(invalid.success, false);
+  assert.equal(refusalWithoutReason.success, false);
+  assert.deepEqual(calls, []);
+
+  const saved = await advanceApproval(proposalId, initial, approvalForm("save_details", { budget: "2400.75", requirements: "  Laptops  " }));
+  assert.equal(saved.success, true);
+  assert.deepEqual(roles, ["FACULTY", "VC", "FACULTY"]);
+  assert.deepEqual(calls, [{ name: "advance_event_approval", args: { p_proposal_id: proposalId, p_action: "save_details", p_budget: 2400.75, p_requirements: "Laptops" } }]);
+  assert.ok(revalidated.includes(`/faculty/events/${proposalId}`));
+  assert.ok(revalidated.includes("/vc/dashboard"));
+});
+
+test("a failed signed approval lock removes the temporary upload", async () => {
+  const eventId = "00000000-0000-4000-8000-000000000030";
+  const uploads = [];
+  const removed = [];
+  let lockPath;
+  const query = { select: () => query, eq: () => query, maybeSingle: async () => ({ data: { id: eventId, status: "AWAITING_VC_DOCUMENT", vc_decision: "APPROVED" }, error: null }) };
+  const client = {
+    from: () => query,
+    storage: { from: () => ({ upload: async (key) => { uploads.push(key); return { error: null }; }, remove: async (keys) => removed.push(...keys) }) },
+    rpc: async (_name, args) => { lockPath = args.p_document_path; return { error: { code: "22023" } }; },
+  };
+  const { advanceApproval } = loadSource("src/app/(dashboard)/approval-actions.ts", {
+    "next/cache": { revalidatePath: () => assert.fail("A failed transition cannot revalidate approval pages") },
+    "@/lib/auth/guard": { requireRole: async (allowed) => assert.deepEqual(allowed, ["DEAN"]) },
+    "@/lib/supabase/server": { createClient: async () => client },
+  });
+  const initial = { message: "", success: false };
+  const forged = new File(["not a PDF"], "approval.pdf", { type: "application/pdf" });
+  assert.equal((await advanceApproval(proposalId, initial, approvalForm("lock_document", { document: forged }))).success, false);
+  assert.deepEqual(uploads, []);
+
+  const pdf = new File(["%PDF-1.4\n"], "approval.pdf", { type: "application/pdf" });
+  assert.equal((await advanceApproval(proposalId, initial, approvalForm("lock_document", { document: pdf }))).success, false);
+  assert.equal(uploads.length, 1);
+  assert.match(lockPath, new RegExp(`^${eventId}/[0-9a-f-]+\\.pdf$`));
+  assert.deepEqual(removed, uploads);
+});
+
 const values = {
   title: "Campus robotics workshop", event_type: "Technical",
   description: "A practical workshop on designing and programming autonomous robots.",

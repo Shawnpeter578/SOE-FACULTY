@@ -18,7 +18,8 @@ export default async function DeanProposalsPage() {
       estimated_budget,
       status,
       created_at,
-      created_by
+      created_by,
+      event:events(status)
     `)
     .order("created_at", { ascending: false });
 
@@ -69,7 +70,7 @@ export default async function DeanProposalsPage() {
               <div className="flex flex-wrap justify-between gap-3">
                 <h2 className="font-semibold">{proposal.title}</h2>
                 <span className="text-sm">
-                  {proposal.status.replaceAll("_", " ")}
+                  {((proposal.event as unknown as { status: string } | null)?.status ?? proposal.status).replaceAll("_", " ")}
                 </span>
               </div>
 

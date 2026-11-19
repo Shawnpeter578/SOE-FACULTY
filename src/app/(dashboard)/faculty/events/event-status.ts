@@ -4,6 +4,7 @@ const statuses: Record<string, { label: string; style: string }> = {
   UNDER_REVIEW: { label: "Under review", style: "bg-amber-50 text-amber-800" },
   CHANGES_REQUESTED: { label: "Changes requested", style: "bg-orange-50 text-orange-800" },
   REJECTED: { label: "Rejected", style: "bg-red-50 text-red-700" },
+  REJECTED_BY_VC: { label: "VC disapproved", style: "bg-red-50 text-red-700" },
   APPROVED_BY_DEAN: { label: "Approved by Dean", style: "bg-emerald-50 text-emerald-800" },
   AWAITING_VC_DOCUMENT: { label: "Awaiting official letter", style: "bg-blue-50 text-blue-700" },
   OFFICIALLY_APPROVED: { label: "Officially approved", style: "bg-emerald-50 text-emerald-800" },

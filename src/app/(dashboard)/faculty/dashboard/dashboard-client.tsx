@@ -252,12 +252,13 @@ export default function DashboardClient({
     )
   ).length;
 
-  const approvedCount = events.length;
+  const approvedCount = events.filter((event) => event.status !== "REJECTED_BY_VC").length;
 
   const ongoingCount = events.filter((event) => {
     const today = new Date().toISOString().slice(0, 10);
 
     return (
+      event.status === "OFFICIALLY_APPROVED" &&
       event.start_date <= today &&
       event.end_date >= today
     );
@@ -419,7 +420,7 @@ export default function DashboardClient({
                   key={event.id}
                   className="bg-white rounded-3xl p-5 md:p-6 border border-slate-100 shadow-[0_2px_15px_rgba(0,0,0,0.03)] lg:hover:-translate-y-1 transition-transform duration-200"
                 >
-                  <div className="flex gap-4 md:gap-5 items-start mb-6">
+                  <Link href={`/faculty/events/${event.proposalId}`} className="group flex gap-4 md:gap-5 items-start mb-6 rounded-lg">
                     <div className="bg-[#F8FAFC] p-3 md:p-4 rounded-[18px] min-w-[72px] md:min-w-[80px] text-center">
                       <div className="text-[13px] font-bold text-[#1E2B58] uppercase tracking-wider">
                         {event.month}
@@ -433,7 +434,7 @@ export default function DashboardClient({
                     <div className="flex-1 pt-1 min-w-0">
                       <div className="flex justify-between items-start gap-2">
                         <h3 className="font-bold text-slate-900 text-lg md:text-xl tracking-tight">
-                          <Link href={`/faculty/events/${event.proposalId}`} className="hover:underline">{event.title}</Link>
+                          <span className="group-hover:underline">{event.title}</span>
                         </h3>
 
                         <ChevronRight
@@ -451,7 +452,7 @@ export default function DashboardClient({
                       <span
                         className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[13px] font-bold ${getStatusStyle(event.status)}`}
                       >
-                        {event.status === "REJECTED" ? (
+                        {event.status === "REJECTED" || event.status === "REJECTED_BY_VC" ? (
                           <X size={14} />
                         ) : event.status === "APPROVED_BY_DEAN" ||
                           event.status === "OFFICIALLY_APPROVED" ? (
@@ -463,13 +464,13 @@ export default function DashboardClient({
                         {getStatusLabel(event.status)}
                       </span>
                     </div>
-                  </div>
+                  </Link>
 
                   <PipelineBar stages={event.stages} />
 
                   {event.status === "CHANGES_REQUESTED" && (
                     <Link
-                      href={`/faculty/events/${event.id}/edit`}
+                      href={`/faculty/events/${event.proposalId}/edit`}
                       className="mt-4 inline-block text-sm font-semibold text-orange-700 hover:underline"
                     >
                       Review feedback and make changes →

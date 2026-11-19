@@ -12,10 +12,11 @@ import {
   LineChart, User, Search, Bell, Plus, ChevronRight
 } from 'lucide-react';
 
-export default function AppLayout({ children, facultyName }: { children: React.ReactNode; facultyName: string }) {
+export default function AppLayout({ children, facultyName, refreshIntervalMs }: { children: React.ReactNode; facultyName: string; refreshIntervalMs?: number }) {
   const pathname = usePathname();
   const initials = getFacultyInitials(facultyName);
   const isCurrent = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
+  const isEventsPage = /^\/faculty\/events(?:\/[^/]+)?$/.test(pathname);
 
   // Update desktopNav paths
   const desktopNav = [
@@ -39,7 +40,7 @@ export default function AppLayout({ children, facultyName }: { children: React.R
 
   return (
     <div className="flex h-screen bg-[#F4F7F9] font-sans text-slate-900 overflow-hidden">
-      {pathname !== '/faculty/request' && <RouteRefresh />}
+      {pathname !== '/faculty/request' && <RouteRefresh intervalMs={refreshIntervalMs} />}
       
       {/* === DESKTOP SIDEBAR === */}
       <aside className="hidden lg:flex w-[260px] bg-white border-r border-slate-200 flex-col justify-between h-full flex-shrink-0">
@@ -116,7 +117,7 @@ export default function AppLayout({ children, facultyName }: { children: React.R
         
         {/* Global Desktop Header */}
         <header className="hidden lg:flex h-16 bg-white border-b border-slate-200 items-center justify-between px-8 flex-shrink-0">
-          {pathname === '/faculty/events' ? <div /> : (
+          {isEventsPage ? <div /> : (
             <Form action="/faculty/events" className="relative w-96" role="search" aria-label="Faculty event search">
               <input
                 type="search"
@@ -149,7 +150,7 @@ export default function AppLayout({ children, facultyName }: { children: React.R
         </div>
 
         {/* Global Mobile FAB */}
-        {pathname !== '/faculty/events' && pathname !== '/faculty/profile' && <div className="fixed bottom-24 right-4 lg:hidden flex items-end gap-3 z-40 pointer-events-none">
+        {!isEventsPage && pathname !== '/faculty/profile' && <div className="fixed bottom-24 right-4 lg:hidden flex items-end gap-3 z-40 pointer-events-none">
           {/* We keep pointer-events-none on the container so we can click through it, but enable it on the button */}
           <Link href="/faculty/request" aria-label="New event request" className="w-14 h-14 bg-[#1A2234] text-white rounded-full flex items-center justify-center shadow-lg hover:bg-[#111827] active:scale-95 transition-all flex-shrink-0 pointer-events-auto">
             <Plus className="w-6 h-6" />

@@ -1,6 +1,7 @@
 import Form from "next/form";
 import Link from "next/link";
 import { ArrowDownWideNarrow, ArrowUpRight, CalendarDays, ChevronLeft, ChevronRight, MapPin, Plus, Search } from "lucide-react";
+import { facultyCardClass, facultyPageClass } from "../components/workspace-styles";
 import { getStatusLabel, getStatusStyle } from "./event-status";
 import type { FacultyRequest } from "./queries";
 
@@ -21,6 +22,7 @@ const statusGroups: Record<string, Exclude<StatusFilter, "all">> = {
   UNDER_REVIEW: "progress",
   CHANGES_REQUESTED: "changes",
   REJECTED: "closed",
+  REJECTED_BY_VC: "closed",
   APPROVED_BY_DEAN: "progress",
   AWAITING_VC_DOCUMENT: "progress",
   OFFICIALLY_APPROVED: "approved",
@@ -87,7 +89,7 @@ export default function EventsList({ requests, searchParams }: { requests: Facul
   }
 
   return (
-    <div className="mx-auto max-w-6xl space-y-7 py-3 md:py-6">
+    <div className={facultyPageClass}>
       <header className="flex flex-wrap items-end justify-between gap-5">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">My Events</h1>
@@ -98,7 +100,7 @@ export default function EventsList({ requests, searchParams }: { requests: Facul
         </Link>
       </header>
 
-      <section aria-label="Event requests" className="overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-[0_2px_15px_rgba(15,23,42,0.03)]">
+      <section aria-label="Event requests" className={`${facultyCardClass} overflow-hidden`}>
         <div className="space-y-5 border-b border-slate-100 px-4 py-5 sm:px-7">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <Form action="/faculty/events" scroll={false} role="search" aria-label="Search event requests" className="flex w-full max-w-sm items-center rounded-xl border border-slate-200 bg-slate-50 focus-within:border-[#1E2B58] focus-within:ring-1 focus-within:ring-[#1E2B58]">
