@@ -304,7 +304,7 @@ export default function ProfilePage() {
   );
 }
 
-function EventListRow({ title, date, status, statusColor, icon: Icon }: any) {
+function EventListRow({ title, date, status, statusColor, icon: Icon }: { title: string; date: string; status: string; statusColor: string; icon: React.ElementType }) {
   return (
     <div className="flex justify-between items-center">
       <div>

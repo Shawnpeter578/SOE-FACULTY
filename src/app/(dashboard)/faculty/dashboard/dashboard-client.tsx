@@ -38,6 +38,7 @@ interface DashboardProposal {
 
 interface DashboardEvent {
   id: string;
+  proposal_id: string;
   title: string;
   venue: string;
   start_date: string;
@@ -55,6 +56,7 @@ interface DashboardProps {
 
 interface EventItem {
   id: string;
+  proposalId: string;
   month: string;
   day: string;
   title: string;
@@ -209,7 +211,7 @@ export default function DashboardClient({
   proposals,
   events,
 }: DashboardProps) {
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery] = useState("");
 
   // Notifications will be connected when the notifications module exists.
   const [notifications, setNotifications] = useState<
@@ -227,6 +229,7 @@ export default function DashboardClient({
 
       return {
         id: proposal.id,
+        proposalId: proposal.id,
         month: date.month,
         day: date.day,
         title: proposal.title,
@@ -245,6 +248,7 @@ export default function DashboardClient({
 
       return {
         id: event.id,
+        proposalId: event.proposal_id,
         month: date.month,
         day: date.day,
         title: event.title,
@@ -260,14 +264,14 @@ export default function DashboardClient({
 
     // Avoid displaying the same event twice after Dean approval.
     const approvedProposalIds = new Set(
-      officialEventItems.map((event) => event.title)
+      officialEventItems.map((event) => event.proposalId)
     );
 
     const uniqueProposals = proposalItems.filter(
       (proposal) =>
         !(
           proposal.status === "APPROVED_BY_DEAN" &&
-          approvedProposalIds.has(proposal.title)
+          approvedProposalIds.has(proposal.proposalId)
         )
     );
 
@@ -355,7 +359,7 @@ export default function DashboardClient({
               </Link>
 
               <Link
-                href="/faculty/events/new"
+                href="/faculty/request"
                 className="text-sm font-semibold text-[#1E2B58] hover:underline"
               >
                 Propose an Event
@@ -364,7 +368,7 @@ export default function DashboardClient({
           </div>
 
           <Link
-            href="/faculty/events/new"
+            href="/faculty/request"
             className="flex items-center gap-2 bg-[#1E2B58] text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-[#162044] hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0 active:scale-95 transition-all duration-200"
           >
             <Plus size={18} strokeWidth={2.5} />
@@ -435,7 +439,7 @@ export default function DashboardClient({
 
                 {!searchQuery && (
                   <Link
-                    href="/faculty/events/new"
+                    href="/faculty/request"
                     className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-[#1E2B58] hover:underline"
                   >
                     <Plus size={16} />
@@ -463,7 +467,7 @@ export default function DashboardClient({
                     <div className="flex-1 pt-1 min-w-0">
                       <div className="flex justify-between items-start gap-2">
                         <h3 className="font-bold text-slate-900 text-lg md:text-xl tracking-tight">
-                          {event.title}
+                          <Link href={`/faculty/events/${event.proposalId}`} className="hover:underline">{event.title}</Link>
                         </h3>
 
                         <ChevronRight

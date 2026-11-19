@@ -59,7 +59,7 @@ export async function updateProposal(
     };
   }
 
-  const { error } = await supabase
+  const { data: updated, error } = await supabase
     .from("event_proposals")
     .update({
       ...parsed.data,
@@ -68,7 +68,9 @@ export async function updateProposal(
     })
     .eq("id", proposalId)
     .eq("created_by", profile.id)
-    .eq("status", "CHANGES_REQUESTED");
+    .eq("status", "CHANGES_REQUESTED")
+    .select("id")
+    .maybeSingle();
 
   if (error) {
     console.error("Proposal update failed:", error);
@@ -78,9 +80,13 @@ export async function updateProposal(
     };
   }
 
+  if (!updated) return { success: false, message: "This proposal has changed. Refresh the page before resubmitting." };
+
   revalidatePath("/faculty/events");
   revalidatePath("/faculty/dashboard");
   revalidatePath("/dean/proposals");
+  revalidatePath("/dean/dashboard");
+  revalidatePath(`/faculty/events/${proposalId}`);
   revalidatePath(`/dean/proposals/${proposalId}`);
 
   return {

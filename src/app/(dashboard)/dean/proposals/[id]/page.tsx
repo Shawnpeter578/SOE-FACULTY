@@ -4,6 +4,8 @@ import Link from "next/link";
 import { requireRole } from "@/lib/auth/guard";
 import { createClient } from "@/lib/supabase/server";
 import ReviewControls from "./review-controls";
+import ProposalDetails from "@/components/proposal-details";
+import RouteRefresh from "@/components/route-refresh";
 
 export default async function ProposalDetailsPage({
   params,
@@ -46,6 +48,7 @@ export default async function ProposalDetailsPage({
 
   return (
     <main className="mx-auto max-w-4xl space-y-6 p-6">
+      <RouteRefresh />
       <div>
         <Link href="/dean/proposals" className="text-sm underline">
           ← Back to proposals
@@ -60,32 +63,7 @@ export default async function ProposalDetailsPage({
         </p>
       </div>
 
-      <section className="space-y-3 rounded-lg border p-5">
-        <h2 className="font-semibold">Proposal details</h2>
-
-        <p><strong>Faculty:</strong> {faculty?.full_name ?? "Unknown"}</p>
-        <p><strong>Venue:</strong> {proposal.venue}</p>
-        <p><strong>Start:</strong> {proposal.start_date}</p>
-        <p><strong>End:</strong> {proposal.end_date}</p>
-        <p>
-          <strong>Estimated budget:</strong>{" "}
-          {proposal.estimated_budget === null
-            ? "Not specified"
-            : `₹${proposal.estimated_budget}`}
-        </p>
-
-        <div>
-          <strong>Description</strong>
-          <p className="mt-1 whitespace-pre-wrap">{proposal.description}</p>
-        </div>
-
-        <div>
-          <strong>Objectives</strong>
-          <p className="mt-1 whitespace-pre-wrap">
-            {proposal.objectives || "Not specified"}
-          </p>
-        </div>
-      </section>
+      <ProposalDetails proposal={proposal} facultyName={faculty?.full_name ?? "Faculty member"} />
 
       {!isFinal && (
         <ReviewControls

@@ -15,7 +15,7 @@ export default async function FacultyDashboardPage() {
       .order("created_at", { ascending: false }),
     supabase
       .from("events")
-      .select("id, title, venue, start_date, end_date, status")
+      .select("id, proposal_id, title, venue, start_date, end_date, status")
       .eq("created_by", profile.id)
       .order("start_date", { ascending: true }),
   ]);

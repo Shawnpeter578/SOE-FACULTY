@@ -85,13 +85,16 @@ export async function reviewProposal(
     };
   }
 
-  const { error: updateError } = await supabase
+  const { data: updated, error: updateError } = await supabase
     .from("event_proposals")
     .update({
       status: action,
       review_note: note ?? null,
     })
-    .eq("id", proposalId);
+    .eq("id", proposalId)
+    .eq("status", proposal.status)
+    .select("id")
+    .maybeSingle();
 
   if (updateError) {
     console.error("Proposal review failed:", updateError.code);
@@ -102,9 +105,14 @@ export async function reviewProposal(
     };
   }
 
+  if (!updated) return { success: false, message: "This proposal has changed. Refresh the page before reviewing it again." };
+
   revalidatePath("/dean/proposals");
   revalidatePath(`/dean/proposals/${proposalId}`);
   revalidatePath("/faculty/dashboard");
+  revalidatePath("/faculty/events");
+  revalidatePath(`/faculty/events/${proposalId}`);
+  revalidatePath("/dean/dashboard");
 
   return {
     success: true,

@@ -3,6 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import RouteRefresh from '@/components/route-refresh';
 import { 
   LayoutGrid, Calendar, FileText, Users, MessageSquare, Wallet, 
   LineChart, User, ChevronDown, Search, Bell, Plus, ChevronRight
@@ -33,6 +34,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex h-screen bg-[#F4F7F9] font-sans text-slate-900 overflow-hidden">
+      {pathname !== '/faculty/request' && <RouteRefresh />}
       
       {/* === DESKTOP SIDEBAR === */}
       <aside className="hidden lg:flex w-[260px] bg-white border-r border-slate-200 flex-col justify-between h-full flex-shrink-0">
@@ -127,7 +129,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             </div>
             <Link href="/faculty/profile" className="w-8 h-8 rounded-full bg-[#EEF2F6] text-[#1A2234] flex items-center justify-center font-bold text-xs">
               AK
-            </Link>
+            </Link> 
           </div>
         </header>
 
@@ -139,9 +141,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         {/* Global Mobile FAB */}
         <div className="fixed bottom-24 right-4 lg:hidden flex items-end gap-3 z-40 pointer-events-none">
           {/* We keep pointer-events-none on the container so we can click through it, but enable it on the button */}
-          <button className="w-14 h-14 bg-[#1A2234] text-white rounded-full flex items-center justify-center shadow-lg hover:bg-[#111827] active:scale-95 transition-all flex-shrink-0 pointer-events-auto">
+          <Link href="/faculty/request" aria-label="New event request" className="w-14 h-14 bg-[#1A2234] text-white rounded-full flex items-center justify-center shadow-lg hover:bg-[#111827] active:scale-95 transition-all flex-shrink-0 pointer-events-auto">
             <Plus className="w-6 h-6" />
-          </button>
+          </Link>
         </div>
 
         {/* Global Mobile Bottom Navigation */}

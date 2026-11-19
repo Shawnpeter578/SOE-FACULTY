@@ -1,5 +1,6 @@
 import { requireRole } from "@/lib/auth/guard";
 import { createClient } from "@/lib/supabase/server";
+import RouteRefresh from "@/components/route-refresh";
 import DeanDashboard, { type DashboardActivity, type DashboardItem } from "./dashboard-client";
 
 export default async function DeanDashboardPage() {
@@ -75,11 +76,12 @@ export default async function DeanDashboardPage() {
     }));
 
   return (
-    <DeanDashboard
+    <><RouteRefresh intervalMs={10000} /><DeanDashboard
+      deanId={dean.id}
       deanName={dean.full_name}
       proposals={proposalRows}
       events={eventRows}
       activities={activities}
-    />
+    /></>
   );
 }

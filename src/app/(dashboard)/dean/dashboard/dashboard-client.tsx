@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import {
   ArrowRight,
   Bell,
@@ -46,6 +46,74 @@ export type DashboardActivity = {
 };
 
 type DashboardTab = "new" | "review" | "vc" | "approved" | "closed";
+
+function notificationKey(request: DashboardItem) {
+  return `${request.id}:${request.updatedAt}`;
+}
+
+function subscribeToStorage(callback: () => void) {
+  window.addEventListener("storage", callback);
+  return () => window.removeEventListener("storage", callback);
+}
+
+function readSeenRequests(stored: string) {
+  try {
+    const keys: unknown = JSON.parse(stored);
+    return Array.isArray(keys) ? keys.filter((key): key is string => typeof key === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
+function NewRequestAlert({ deanId, requests }: { deanId: string; requests: DashboardItem[] }) {
+  const storageKey = `eventdesk:seen-requests:${deanId}`;
+  const [acknowledged, setAcknowledged] = useState<string[]>([]);
+  const stored = useSyncExternalStore(
+    subscribeToStorage,
+    () => {
+      try {
+        return sessionStorage.getItem(storageKey) ?? "[]";
+      } catch {
+        return "[]";
+      }
+    },
+    () => null,
+  );
+  const seen = new Set([...readSeenRequests(stored ?? "[]"), ...acknowledged]);
+  const unseen = stored === null ? [] : requests.filter((request) => !seen.has(notificationKey(request)));
+  const latest = unseen[0];
+
+  function acknowledge(requestsToDismiss: DashboardItem[]) {
+    const updated = [...seen, ...requestsToDismiss.map(notificationKey)];
+    setAcknowledged(updated);
+    try {
+      sessionStorage.setItem(storageKey, JSON.stringify(updated));
+    } catch {
+      // Dismissal still applies while this dashboard is open.
+    }
+  }
+
+  if (!latest) return null;
+
+  return (
+    <aside aria-label="New request notification" className="fixed inset-x-4 top-4 z-50 max-w-sm rounded-2xl border border-[#DCE3F0] bg-white p-4 shadow-lg sm:left-auto sm:right-6 sm:top-6 sm:w-full">
+      <div className="flex items-start gap-3">
+        <span className="rounded-lg bg-[#E9EDF7] p-2 text-[#24366F]"><Bell size={18} aria-hidden="true" /></span>
+        <div role="status" className="min-w-0 flex-1">
+          <p className="text-sm font-bold">{unseen.length === 1 ? "New event request" : `${unseen.length} new event requests`}</p>
+          <p className="mt-1 break-words text-sm">{latest.title}</p>
+          <p className="mt-1 text-xs text-[#66738C]">Submitted by {latest.person}</p>
+        </div>
+        <button type="button" onClick={() => acknowledge(unseen)} aria-label="Dismiss new request notification" className="rounded-md p-1 text-[#66738C] hover:bg-[#E9EDF7]">
+          <X size={18} />
+        </button>
+      </div>
+      <Link href={latest.href} onClick={() => acknowledge([latest])} className="ml-12 mt-3 inline-flex items-center gap-1 text-sm font-semibold text-[#24366F] hover:underline">
+        {unseen.length === 1 ? "Review request" : "Review latest request"} <ArrowRight size={14} aria-hidden="true" />
+      </Link>
+    </aside>
+  );
+}
 
 const tabLabels: Record<DashboardTab, string> = {
   new: "New requests",
@@ -96,11 +164,13 @@ function initials(name: string) {
 }
 
 export default function DeanDashboard({
+  deanId,
   deanName,
   proposals,
   events,
   activities,
 }: {
+  deanId: string;
   deanName: string;
   proposals: DashboardItem[];
   events: DashboardItem[];
@@ -153,6 +223,7 @@ export default function DeanDashboard({
 
   return (
     <div className="min-h-screen bg-[#F4F6FB] text-[#26334F] lg:flex">
+      <NewRequestAlert key={deanId} deanId={deanId} requests={groups.new} />
       <aside className="hidden w-[280px] shrink-0 flex-col border-r border-[#E6EAF2] bg-white lg:flex">
         <Link href="/dean/dashboard" className="flex h-[76px] items-center gap-3 border-b border-[#EDF0F5] px-7">
           <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#1B2D68] text-white">
