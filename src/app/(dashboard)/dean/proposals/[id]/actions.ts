@@ -37,6 +37,11 @@ export async function reviewProposal(
   }
 
   const { proposalId, action, note } = parsed.data;
+  const signatureRevision = action === "APPROVED_BY_DEAN" && formData.get("includeSignature") === "yes"
+    ? z.uuid().safeParse(formData.get("signatureRevision")) : null;
+  if (signatureRevision && !signatureRevision.success) {
+    return { success: false, message: "Refresh the request before using your saved signature." };
+  }
   const supabase = await createClient();
 
   const { data: proposal, error: fetchError } = await supabase
@@ -60,7 +65,9 @@ export async function reviewProposal(
     return { success: false, message: "Please provide a reason for this decision." };
   }
 
-  const { data: updated, error: updateError } = await supabase
+  const { data: updated, error: updateError } = signatureRevision?.success ? await supabase.rpc("approve_proposal_with_profile_signature", {
+    p_proposal_id: proposalId, p_expected_status: proposal.status, p_note: note ?? null, p_signature_revision: signatureRevision.data,
+  }) : await supabase
     .from("event_proposals")
     .update({
       status: action,
@@ -76,7 +83,8 @@ export async function reviewProposal(
 
     return {
       success: false,
-      message: "Unable to update the proposal.",
+      message: updateError.code === "P0001" ? "Your saved signature changed. Refresh the request before approving it."
+        : "Unable to update the proposal.",
     };
   }
 

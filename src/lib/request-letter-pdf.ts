@@ -6,6 +6,7 @@ import PDFDocument from "pdfkit";
 import QRCode from "qrcode";
 import { formatApprovalDate, formatApprovalTime } from "@/lib/event-approval";
 import { defaultLetterBody, defaultLetterClosing, letterArrangementRows, requestLetterFields, type RequestLetter } from "@/lib/request-letter";
+import { SIGNATURE_GRID_MAX, signatureStrokes } from "@/lib/profile-signature";
 import { universityName } from "@/lib/university";
 
 const navy = "#152961";
@@ -62,25 +63,43 @@ export async function renderRequestLetterPdf(letter: RequestLetter, url: string)
 
   const columnWidth = width / 2 - 14;
   const signatures = [
-    { label: letter.usesLegacyLetterFormat ? "Faculty e-sign" : "Faculty endorsement", name: letter.faculty, signedAt: letter.facultySignedAt, date: letter.facultySignedAt, fallback: "Signature unavailable" },
+    { label: letter.usesLegacyLetterFormat ? "Faculty e-sign" : "Faculty endorsement", name: letter.faculty, signedAt: letter.facultySignedAt, date: letter.facultySignedAt, fallback: "Signature unavailable", mark: letter.facultySignature },
     { label: letter.deanSignedAt ? "Dean e-sign" : "Dean approval", name: letter.dean, signedAt: letter.deanSignedAt,
-      date: letter.deanSignedAt ?? letter.deanApprovedAt, fallback: "Approved in EventDesk" },
+      date: letter.deanSignedAt ?? letter.deanApprovedAt, fallback: "Approved in EventDesk", mark: letter.deanApprovalSignature },
   ];
-  document.font("Italic").fontSize(12);
-  const namesHeight = Math.max(...signatures.map(({ name }) => document.heightOfString(name, { width: columnWidth })));
-  if (document.y + namesHeight + 135 > document.page.maxY()) document.addPage();
+  const marksHeight = Math.max(...signatures.map(({ mark }) => mark?.kind === "typed"
+    ? document.font("Italic").fontSize(13).heightOfString(mark.value, { width: columnWidth })
+    : mark?.kind === "drawn" ? 28 : 0));
+  const namesHeight = Math.max(...signatures.map(({ name }) => document.font("Regular").fontSize(12).heightOfString(name, { width: columnWidth })));
+  const qrSize = 74;
+  if (document.y + namesHeight + marksHeight + qrSize + 54 > document.page.maxY()) document.addPage();
   document.moveDown(0.45);
   rule();
   const signatureY = document.y;
-  signatures.forEach(({ label, name, signedAt, date, fallback }, index) => {
+  signatures.forEach(({ label, name, signedAt, date, fallback, mark }, index) => {
     const x = margin + index * (columnWidth + 28);
     document.font("Bold").fontSize(9).fillColor(muted).text(label, x, signatureY, { width: columnWidth });
-    document.font(signedAt ? "Italic" : "Regular").fontSize(12).fillColor(navy).text(name, { width: columnWidth });
+    if (mark?.kind === "typed") {
+      document.font("Italic").fontSize(13).fillColor(navy).text(mark.value, { width: columnWidth });
+    } else if (mark?.kind === "drawn") {
+      const top = document.y;
+      document.save().lineWidth(1.1).lineCap("round").lineJoin("round");
+      for (const stroke of signatureStrokes(mark.value)) {
+        stroke.forEach(([pointX, pointY], pointIndex) => {
+          const px = x + pointX / SIGNATURE_GRID_MAX * 95;
+          const py = top + pointY / SIGNATURE_GRID_MAX * 26;
+          if (pointIndex === 0) document.moveTo(px, py);
+          else document.lineTo(px, py);
+        });
+      }
+      document.stroke(navy).restore();
+      document.y = top + 28;
+    }
+    document.font(signedAt && !mark ? "Italic" : "Regular").fontSize(12).fillColor(navy).text(name, { width: columnWidth });
     document.font("Regular").fontSize(8).fillColor(muted).text(date ? formatApprovalTime(date) : fallback, { width: columnWidth });
   });
 
-  const verificationY = signatureY + namesHeight + 38;
-  const qrSize = 78;
+  const verificationY = signatureY + namesHeight + marksHeight + 38;
   const qrX = margin + width - qrSize;
   document.rect(margin, verificationY + 22, width - qrSize - 12, 34).lineWidth(0.7).stroke(border);
   document.font("Bold").fontSize(9).fillColor(navy).text(`Letter ID   ${letter.letterId}`, margin + 10, verificationY + 33, { width: width - qrSize - 32, link: url });
@@ -127,20 +146,20 @@ function renderPermissionLetterContent(document: PDFKit.PDFDocument, letter: Req
 
   for (const [label, value] of letterArrangementRows(letter)) {
     const isCurrency = label === "Estimated budget" && value.startsWith("₹");
-    const rowHeight = document.font("Regular").heightOfString(value, { width: valueWidth, lineGap: 2 }) + 12;
+    const rowHeight = document.font("Regular").heightOfString(value, { width: valueWidth, lineGap: 2 }) + 8;
     const pageContentHeight = document.page.maxY() - document.page.margins.top;
     if (document.y + rowHeight > document.page.maxY() && rowHeight < pageContentHeight) document.addPage();
     const rowY = document.y;
     const rowPage = document.page;
-    document.fillColor(muted).text(label, margin + 8, rowY + 6, { width: firstColumn - 16 });
+    document.fillColor(muted).text(label, margin + 8, rowY + 4, { width: firstColumn - 16 });
     document.fillColor("#0F1422");
     if (isCurrency) {
-      document.font("Currency").text("₹", valueX, rowY + 6, { width: valueWidth, continued: true });
+      document.font("Currency").text("₹", valueX, rowY + 4, { width: valueWidth, continued: true });
       document.font("Regular").text(value.slice(1));
     } else {
-      document.text(value, valueX, rowY + 6, { width: valueWidth, lineGap: 2 });
+      document.text(value, valueX, rowY + 4, { width: valueWidth, lineGap: 2 });
     }
-    document.y = rowPage === document.page ? Math.max(rowY + rowHeight, document.y + 6) : document.y + 6;
+    document.y = rowPage === document.page ? Math.max(rowY + rowHeight, document.y + 4) : document.y + 4;
     document.moveTo(margin, document.y).lineTo(margin + width, document.y).lineWidth(0.6).stroke(border);
   }
 

@@ -8,11 +8,14 @@ import { updateRequestLetter } from "@/app/(dashboard)/request-letter-actions";
 import { formatApprovalDate, formatApprovalTime } from "@/lib/event-approval";
 import { universityName } from "@/lib/university";
 import { defaultLetterBody, defaultLetterClosing, letterArrangementRows, LETTER_BODY_LIMIT, LETTER_CLOSING_LIMIT, requestLetterFields, type RequestLetter } from "@/lib/request-letter";
+import type { SavedSignature, SignatureMark } from "@/lib/profile-signature";
 import RequestLetterSteps from "./request-letter-steps";
+import SignaturePreview from "./signature-mark";
 
 type LetterProps = RequestLetter & {
   role: string; back: string; qr?: string; detailsAt?: string | null; printedAt?: string | null;
   status: string; vcDecision?: string | null; ready: boolean; canUpdate: boolean; signingAvailable: boolean; textEditingAvailable: boolean;
+  savedSignature?: SavedSignature | null;
 };
 
 const panel = "rounded-2xl border border-brand-border bg-brand-surface p-5";
@@ -101,10 +104,11 @@ export default function LetterPreview(props: LetterProps) {
                 </div>
               </> : <PermissionLetterContent letter={props} body={text.body} closing={text.closing} />}
               <div className="mt-7 grid grid-cols-2 gap-5 border-t border-brand-border pt-4 [break-inside:avoid]">
-                <Signature label={showLegacyLayout ? "Faculty e-sign" : "Faculty endorsement"} name={faculty} signedAt={hasUnsavedText ? null : props.facultySignedAt} />
+                <Signature label={showLegacyLayout ? "Faculty e-sign" : "Faculty endorsement"} name={faculty} signedAt={hasUnsavedText ? null : props.facultySignedAt} mark={hasUnsavedText ? null : props.facultySignature} />
                 {props.deanSignedAt ? <Signature label="Dean e-sign" name={dean} signedAt={props.deanSignedAt} /> : (
                   <div className="min-w-0">
                     <p className="text-xs font-semibold text-text-secondary">Dean approval</p>
+                    {props.deanApprovalSignature && <SignaturePreview signature={props.deanApprovalSignature} className="mt-1.5 max-w-40" />}
                     <p className="mt-2 text-sm font-medium text-brand-primary">{dean}</p>
                     <p className="mt-1 text-xs text-text-secondary">{props.deanApprovedAt ? formatApprovalTime(props.deanApprovedAt) : "Approved in EventDesk"}</p>
                   </div>
@@ -159,10 +163,7 @@ export default function LetterPreview(props: LetterProps) {
               {hasUnsavedText && <p className="text-xs text-text-secondary">{ready ? "Changes require a new signature before printing." : "Unsaved changes"}</p>}
               <button name="action" value="save_draft" type="submit" className={`${secondaryButton} w-full disabled:opacity-50`} disabled={pending || !hasUnsavedText || !text.body.trim()}>Save draft</button>
               {(!ready || hasUnsavedText) && <>
-                <label className="flex items-start gap-2.5 text-sm font-medium">
-                  <input type="checkbox" name="consent" value="yes" disabled={pending} className="mt-0.5 size-4 shrink-0 accent-brand-primary" />
-                  I confirm that my typed name, {faculty}, is my e-signature on this request letter.
-                </label>
+                <SignatureConsent name={faculty} saved={props.savedSignature} pending={pending} />
                 <button name="action" value="sign_letter" type="submit" disabled={pending || !text.body.trim()} className={`${button} w-full`}>{props.createdAt ? "Apply my e-signature" : "Generate and e-sign"}</button>
               </>}
             </form>
@@ -170,10 +171,7 @@ export default function LetterPreview(props: LetterProps) {
             <form action={submit} className={`${panel} space-y-3`}>
               <input type="hidden" name="action" value="sign_letter" />
               <input type="hidden" name="detailsAt" value={props.detailsAt ?? ""} />
-              <label className="flex items-start gap-2.5 text-sm font-medium">
-                <input type="checkbox" name="consent" value="yes" required disabled={pending} className="mt-0.5 size-4 shrink-0 accent-brand-primary" />
-                I confirm that my typed name, {faculty}, is my e-signature on this request letter.
-              </label>
+              <SignatureConsent name={faculty} saved={props.savedSignature} pending={pending} required />
               <button type="submit" disabled={pending} className={`${button} w-full`}>{pending ? "Recording signature…" : props.createdAt ? "Apply my e-signature" : "Generate and e-sign"}</button>
             </form>
           )}
@@ -225,11 +223,27 @@ function PermissionLetterContent({ letter, body, closing }: { letter: RequestLet
   );
 }
 
-function Signature({ label, name, signedAt }: { label: string; name: string; signedAt?: string | null }) {
+function SignatureConsent({ name, saved, pending, required }: { name: string; saved?: SavedSignature | null; pending: boolean; required?: boolean }) {
+  return (
+    <>
+      {saved && <div className="rounded-lg bg-brand-canvas p-2.5">
+        <input type="hidden" name="signatureRevision" value={saved.revision} />
+        <SignaturePreview signature={saved} className="max-w-40" />
+      </div>}
+      <label className="flex items-start gap-2.5 text-sm font-medium">
+        <input type="checkbox" name="consent" value="yes" required={required} disabled={pending} className="mt-0.5 size-4 shrink-0 accent-brand-primary" />
+        {saved ? "I confirm that my saved e-signature may be applied to this letter." : `I confirm that my typed name, ${name}, is my e-signature on this request letter.`}
+      </label>
+    </>
+  );
+}
+
+function Signature({ label, name, signedAt, mark }: { label: string; name: string; signedAt?: string | null; mark?: SignatureMark | null }) {
   return (
     <div className="min-w-0">
       <p className="text-xs font-semibold text-text-secondary">{label}</p>
-      <p className={`mt-2 text-brand-primary ${signedAt ? "text-base italic font-medium" : "text-xs"}`}>{signedAt ? name : "Signature unavailable"}</p>
+      {mark && signedAt && <SignaturePreview signature={mark} className="mt-1.5 max-w-40" />}
+      <p className={`mt-2 text-brand-primary ${signedAt && !mark ? "text-base italic font-medium" : "text-xs"}`}>{signedAt ? name : "Signature unavailable"}</p>
       <p className="mt-1 text-xs text-text-secondary">{signedAt ? formatApprovalTime(signedAt) : name}</p>
     </div>
   );

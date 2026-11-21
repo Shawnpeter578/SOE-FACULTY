@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, ArrowUpRight, CalendarDays, CheckCircle2, ChevronDown, CircleX, ClipboardList, Clock3, FileText, Paperclip, UserRound, UsersRound, Wallet, type LucideIcon } from "lucide-react";
 import { requireRole } from "@/lib/auth/guard";
+import { getProfilePreferences } from "@/lib/profile-preferences-server";
 import { createClient } from "@/lib/supabase/server";
 import { signProposalAttachments } from "@/lib/supabase/proposal-attachments";
 import { formatApprovalTime, formatEventBudget, formatEventDateRange, formatEventTime, type ApprovalEvent } from "@/lib/event-approval";
@@ -64,11 +65,12 @@ export default async function ProposalDetailsPage({ params }: { params: Promise<
   const { data: proposal, error } = await supabase.from("event_proposals").select("*").eq("id", id).maybeSingle();
   if (error || !proposal) notFound();
 
-  const [{ data: faculty }, { data: reviews }, { data: event, error: eventError }, attachments] = await Promise.all([
+  const [{ data: faculty }, { data: reviews }, { data: event, error: eventError }, attachments, preferences] = await Promise.all([
     supabase.from("profiles").select("full_name").eq("id", proposal.created_by).maybeSingle(),
     supabase.from("proposal_reviews").select("id,action,note,created_at").eq("proposal_id", id).order("created_at", { ascending: false }),
     supabase.from("events").select("*").eq("proposal_id", id).maybeSingle<ApprovalEvent>(),
     signProposalAttachments(supabase, proposal.attachments),
+    ["SUBMITTED", "UNDER_REVIEW", "CHANGES_REQUESTED"].includes(proposal.status) ? getProfilePreferences(supabase, dean.id) : null,
   ]);
   if (eventError) throw new Error("Unable to load the event approval journey.");
 
@@ -212,7 +214,7 @@ export default async function ProposalDetailsPage({ params }: { params: Promise<
         </details>
       ) : null}
 
-      <ReviewControls key={id} proposalId={id} status={proposal.status} title={proposal.title} facultyName={facultyName} dates={dates} />
+      <ReviewControls key={id} proposalId={id} status={proposal.status} title={proposal.title} facultyName={facultyName} dates={dates} savedSignature={preferences?.signature} />
     </div>
   );
 }

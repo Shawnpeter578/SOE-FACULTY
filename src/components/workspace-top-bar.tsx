@@ -8,7 +8,7 @@ export function workspaceInitials(name: string, fallback: string) {
 }
 
 type WorkspaceTopBarProps = {
-  role: "Dean" | "Faculty";
+  role: "Dean" | "Faculty" | "Co-Faculty";
   name: string;
   initials: string;
   searchPath: string;
@@ -16,11 +16,13 @@ type WorkspaceTopBarProps = {
   showSearch?: boolean;
   showOnMobile?: boolean;
   notifications: ReactNode;
+  profileControl?: ReactNode;
 };
 
 export default function WorkspaceTopBar({
-  role, name, initials, searchPath, searchLabel, showSearch = true, showOnMobile = true, notifications,
+  role, name, initials, searchPath, searchLabel, showSearch = true, showOnMobile = true, notifications, profileControl,
 }: WorkspaceTopBarProps) {
+  const searchPlaceholder = role === "Dean" ? "Search requests" : role === "Co-Faculty" ? "Search assignments" : "Search events";
   return (
     <header className={`${showOnMobile ? 'flex' : 'hidden lg:flex'} relative z-10 mx-3 mt-3 min-h-16 shrink-0 items-center gap-2 rounded-2xl border border-brand-border bg-brand-surface/90 px-2.5 shadow-sm sm:mx-5 sm:gap-4 sm:rounded-3xl sm:px-5 lg:mx-8 lg:mt-5 lg:min-h-[4.5rem] lg:gap-5 lg:px-6 xl:px-8`}>
       <div className="hidden shrink-0 items-center gap-2.5 lg:flex">
@@ -42,10 +44,10 @@ export default function WorkspaceTopBar({
             name="q"
             maxLength={120}
             aria-label={searchLabel}
-            placeholder={role === "Dean" ? "Search requests" : "Search events"}
+            placeholder={searchPlaceholder}
             className="min-h-11 min-w-0 flex-1 bg-transparent text-base text-text-primary outline-none placeholder:text-text-secondary sm:text-sm"
           />
-          <button type="submit" aria-label={role === "Dean" ? "Search requests" : "Search events"} className="inline-flex size-9 shrink-0 items-center justify-center rounded-full bg-brand-primary text-white transition-colors hover:bg-brand-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-primary sm:w-auto sm:px-4 sm:text-sm sm:font-semibold">
+          <button type="submit" aria-label={searchPlaceholder} className="inline-flex size-9 shrink-0 items-center justify-center rounded-full bg-brand-primary text-white transition-colors hover:bg-brand-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-primary sm:w-auto sm:px-4 sm:text-sm sm:font-semibold">
             <span className="hidden sm:inline">Search</span>
             <ArrowRight className="size-4 sm:hidden" aria-hidden="true" />
           </button>
@@ -54,12 +56,12 @@ export default function WorkspaceTopBar({
       <div className="ml-auto flex shrink-0 items-center gap-1.5 sm:gap-3">
         {notifications}
         <span className="hidden h-7 w-px bg-brand-border xl:block" aria-hidden="true" />
-        <Link href={role === "Dean" ? "/dean/profile" : "/faculty/profile"} aria-label="Your profile" className="flex min-h-11 items-center gap-2.5 rounded-full p-1 text-brand-primary transition-colors hover:bg-brand-selected focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-primary xl:pr-3">
+        {profileControl ?? <Link href={role === "Dean" ? "/dean/profile" : "/faculty/profile"} aria-label="Your profile" className="flex min-h-11 items-center gap-2.5 rounded-full p-1 text-brand-primary transition-colors hover:bg-brand-selected focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-primary xl:pr-3">
           <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-brand-selected text-sm font-bold" aria-hidden="true">
             {initials}
           </span>
           <span className="hidden max-w-36 truncate text-sm font-semibold xl:block">{name}</span>
-        </Link>
+        </Link>}
       </div>
     </header>
   );

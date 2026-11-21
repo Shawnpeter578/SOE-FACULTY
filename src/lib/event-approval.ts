@@ -16,6 +16,8 @@ export type ApprovalEvent = {
   letter_event_details?: LetterEventDetails | null;
   letter_body?: string | null;
   letter_closing?: string | null;
+  faculty_signature?: unknown;
+  dean_approval_signature?: unknown;
   review_budget?: number | null;
   review_requirements?: string | null;
   review_details_at?: string | null;

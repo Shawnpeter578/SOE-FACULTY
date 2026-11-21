@@ -1,3 +1,5 @@
+import type { SignatureMark } from "@/lib/profile-signature";
+
 export type RequestLetter = {
   id: string;
   title: string;
@@ -17,6 +19,8 @@ export type RequestLetter = {
   facultySignedAt?: string | null;
   deanSignedAt?: string | null;
   deanApprovedAt?: string | null;
+  facultySignature?: SignatureMark | null;
+  deanApprovalSignature?: SignatureMark | null;
   createdAt?: string | null;
   letterId: string;
   body?: string | null;

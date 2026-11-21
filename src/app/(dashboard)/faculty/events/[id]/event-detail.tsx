@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { ReactNode } from "react";
 import { ArrowLeft, CalendarDays, Check, CircleAlert, MapPin, X } from "lucide-react";
 import ApprovalControls from "@/components/approval-controls";
 import type { Proposal } from "@/components/proposal-details";
@@ -13,12 +14,13 @@ type Request = Proposal & { id: string; status: string; review_note: string | nu
 const panel = `${facultyCardClass} min-w-0 p-4 sm:p-7`;
 const panelHeading = "text-lg font-bold tracking-tight text-slate-900";
 
-export default function EventDetail({ proposal, event, facultyName, attachments, approvalUrl }: {
+export default function EventDetail({ proposal, event, facultyName, attachments, approvalUrl, coordinators }: {
   proposal: Request;
   event: ApprovalEvent | null;
   facultyName: string;
   attachments: (ProposalAttachment & { url?: string })[];
   approvalUrl?: string;
+  coordinators?: ReactNode;
 }) {
   const vcRejected = event?.status === "REJECTED_BY_VC";
   const deanRejected = proposal.status === "REJECTED";
@@ -92,6 +94,8 @@ export default function EventDetail({ proposal, event, facultyName, attachments,
             {closed && closureNote && <blockquote className="mt-3 rounded-xl bg-white px-4 py-3 text-sm leading-relaxed text-text-primary"><p className="whitespace-pre-wrap break-words">{closureNote}</p><footer className="mt-1 text-xs text-text-secondary">— {vcRejected ? "Vice-Chancellor" : "Dean"}</footer></blockquote>}
           </section>
         )}
+
+        {coordinators}
 
         <div className="grid items-start gap-5 @min-[42rem]:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] sm:gap-6">
           <section className={panel}>

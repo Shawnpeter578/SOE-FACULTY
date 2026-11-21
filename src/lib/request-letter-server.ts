@@ -7,6 +7,7 @@ import { requireRole, type AppRole } from "@/lib/auth/guard";
 import { createClient } from "@/lib/supabase/server";
 import { formatEventBudget, formatEventDateRange, formatEventTime, type ApprovalEvent, type LetterEventDetails } from "@/lib/event-approval";
 import type { RequestLetter } from "@/lib/request-letter";
+import { parseSignature } from "@/lib/profile-signature";
 
 export async function loadRequestLetter(id: string, roles: AppRole[]) {
   const profile = await requireRole(roles);
@@ -56,6 +57,7 @@ export async function loadRequestLetter(id: string, roles: AppRole[]) {
     requirements: event.review_details_at ? event.review_requirements : event.review_requirements ?? proposal?.special_requirements,
     facultySignedAt: event.letter_faculty_signed_at, deanSignedAt: event.letter_dean_signed_at,
     deanApprovedAt: details.deanApprovedAt ?? proposal?.reviewed_at, createdAt: event.letter_generated_at,
+    facultySignature: parseSignature(event.faculty_signature), deanApprovalSignature: parseSignature(event.dean_approval_signature),
     letterId: `ED-${year}-${event.id.toUpperCase()}`,
     body: event.letter_body, closing: event.letter_closing,
     usesLegacyLetterFormat: event.letter_body == null && (!textEditingAvailable || Boolean(event.letter_faculty_signed_at || event.letter_printed_at)),

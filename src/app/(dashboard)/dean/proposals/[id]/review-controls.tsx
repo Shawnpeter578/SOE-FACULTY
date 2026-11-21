@@ -2,18 +2,21 @@
 
 import { useActionState, useEffect, useRef, useState } from "react";
 import { CheckCircle2, CircleX, Send, X } from "lucide-react";
+import SignaturePreview from "@/components/signature-mark";
+import type { SavedSignature } from "@/lib/profile-signature";
 import { reviewProposal, type ReviewState } from "./actions";
 
 type Decision = "APPROVED_BY_DEAN" | "REJECTED";
 const initialState: ReviewState = { success: false, message: null };
 const primary = "inline-flex min-h-10 items-center justify-center rounded-lg px-4 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500";
 
-export default function ReviewControls({ proposalId, status, title, facultyName, dates }: {
+export default function ReviewControls({ proposalId, status, title, facultyName, dates, savedSignature }: {
   proposalId: string;
   status: string;
   title: string;
   facultyName: string;
   dates: string;
+  savedSignature?: SavedSignature | null;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const [decision, setDecision] = useState<Decision | null>(null);
@@ -52,18 +55,19 @@ export default function ReviewControls({ proposalId, status, title, facultyName,
         </footer>
       )}
       <dialog ref={dialog} aria-labelledby="dean-decision-title" onCancel={(event) => { if (pending) event.preventDefault(); }} onClose={() => setDecision(null)} className="m-auto max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-[35rem] overflow-y-auto rounded-2xl border border-brand-border bg-white p-5 text-text-primary shadow-xl backdrop:bg-brand-hover/40 sm:p-6">
-        {decision && <DecisionForm decision={decision} proposalId={proposalId} title={title} facultyName={facultyName} dates={dates} onComplete={completed} onPending={setPending} onCancel={() => dialog.current?.close()} />}
+        {decision && <DecisionForm decision={decision} proposalId={proposalId} title={title} facultyName={facultyName} dates={dates} savedSignature={savedSignature} onComplete={completed} onPending={setPending} onCancel={() => dialog.current?.close()} />}
       </dialog>
     </>
   );
 }
 
-function DecisionForm({ decision, proposalId, title, facultyName, dates, onComplete, onCancel, onPending }: {
+function DecisionForm({ decision, proposalId, title, facultyName, dates, savedSignature, onComplete, onCancel, onPending }: {
   decision: Decision;
   proposalId: string;
   title: string;
   facultyName: string;
   dates: string;
+  savedSignature?: SavedSignature | null;
   onComplete: (result: ReviewState) => void;
   onCancel: () => void;
   onPending: (pending: boolean) => void;
@@ -105,6 +109,14 @@ function DecisionForm({ decision, proposalId, title, facultyName, dates, onCompl
         <span className="block px-3 pb-2 text-right text-xs tabular-nums text-text-secondary">{note.length} / {maxLength}</span>
       </div>
       {rejected && <p className="mt-2 text-xs text-text-secondary">{note.trim() ? "This reason will be visible to the faculty." : "Enter a reason to enable confirmation."}</p>}
+      {!rejected && savedSignature && <div className="mt-4 rounded-xl bg-brand-canvas p-3">
+        <input type="hidden" name="signatureRevision" value={savedSignature.revision} />
+        <SignaturePreview signature={savedSignature} className="mb-2 max-w-40" />
+        <label className="flex items-start gap-2 text-sm font-medium">
+          <input type="checkbox" name="includeSignature" value="yes" disabled={pending} className="mt-0.5 size-4 shrink-0 accent-brand-primary" />
+          Include my saved e-signature with this approval.
+        </label>
+      </div>}
       {state.message && !state.success && <p role="alert" className="mt-3 text-sm text-red-700">{state.message}</p>}
       <div className="mt-5 flex flex-wrap justify-end gap-2.5">
         <button type="button" onClick={onCancel} disabled={pending} className="min-h-10 rounded-lg border border-brand-primary/40 px-4 text-sm font-semibold text-brand-primary hover:bg-brand-canvas">Cancel</button>
