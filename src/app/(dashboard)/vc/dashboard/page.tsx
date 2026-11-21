@@ -2,7 +2,6 @@ import Link from "next/link";
 import { requireRole } from "@/lib/auth/guard";
 import { createClient } from "@/lib/supabase/server";
 import { formatApprovalTime, formatEventBudget, formatEventDateRange, type ApprovalEvent } from "@/lib/event-approval";
-import ApprovalControls from "@/components/approval-controls";
 import RouteRefresh from "@/components/route-refresh";
 
 export default async function ViceChancellorDashboardPage() {
@@ -24,9 +23,12 @@ export default async function ViceChancellorDashboardPage() {
           {event.review_budget != null && <p className="text-sm text-text-secondary">Budget · {formatEventBudget(event.review_budget)}</p>}
           {event.review_requirements && <p className="whitespace-pre-wrap break-words text-sm text-text-secondary">{event.review_requirements}</p>}
           <Link className="inline-block text-sm font-semibold text-brand-primary hover:underline" href={`/faculty/events/${event.proposal_id}/letter`}>Read request letter</Link>
-          {event.status === "AWAITING_VC_DOCUMENT" && !event.vc_decision ? (
-            <div className="border-t border-brand-border pt-3"><ApprovalControls proposalId={event.proposal_id} mode="vc" /></div>
-          ) : event.vc_decided_at && <p className="whitespace-pre-wrap break-words text-sm text-text-secondary">{formatApprovalTime(event.vc_decided_at)}{event.vc_note && ` · ${event.vc_note}`}</p>}
+          <div className="flex flex-wrap items-center gap-3 border-t border-brand-border pt-3">
+            <Link href={`/vc/events/${event.proposal_id}/decision`} className="rounded-xl bg-brand-primary px-4 py-2 text-sm font-semibold text-white hover:bg-brand-hover">
+              {event.status === "AWAITING_VC_DOCUMENT" ? event.vc_decision === "APPROVED" ? "Upload signed approval" : "Record decision" : "View decision"}
+            </Link>
+            {event.vc_decided_at && <p className="whitespace-pre-wrap break-words text-sm text-text-secondary">{formatApprovalTime(event.vc_decided_at)}{event.vc_note && ` ? ${event.vc_note}`}</p>}
+          </div>
         </article>
       )) : <p className="rounded-card border border-brand-border bg-white p-5 text-sm text-text-secondary">No printed requests have been sent for review yet.</p>}
     </main>

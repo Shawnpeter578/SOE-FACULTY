@@ -14,6 +14,8 @@ export type ApprovalEvent = {
   letter_dean_name?: string | null;
   letter_dean_signed_at?: string | null;
   letter_event_details?: LetterEventDetails | null;
+  letter_body?: string | null;
+  letter_closing?: string | null;
   review_budget?: number | null;
   review_requirements?: string | null;
   review_details_at?: string | null;
@@ -37,6 +39,8 @@ export type LetterEventDetails = {
   participants?: number | null;
   audience?: string | null;
   objectives?: string | null;
+  deanApprovalName?: string | null;
+  deanApprovedAt?: string | null;
 };
 
 export const EVENT_DOCUMENT_BUCKET = "event-documents";
@@ -62,7 +66,7 @@ export function getFacultyApprovalAction(event: ApprovalEvent | null) {
   if (!event || event.status !== "AWAITING_VC_DOCUMENT" || !("letter_generated_at" in event)) return null;
   if (!event.letter_generated_at) return "generate";
   if (!event.review_details_at) return "details";
-  if (!event.letter_printed_at && (!event.letter_faculty_signed_at || !event.letter_dean_signed_at)) return "sign";
+  if (!event.letter_printed_at && !event.letter_faculty_signed_at) return "sign";
   if (!event.letter_printed_at) return "print";
   return null;
 }

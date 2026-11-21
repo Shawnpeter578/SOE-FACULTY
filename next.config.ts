@@ -7,6 +7,7 @@ const nextConfig: NextConfig = {
       "./node_modules/@fontsource/noto-sans/package.json",
       "./node_modules/@fontsource/noto-sans/files/noto-sans-latin-400-{normal,italic}.woff",
       "./node_modules/@fontsource/noto-sans/files/noto-sans-latin-700-normal.woff",
+      "./node_modules/@fontsource/noto-sans/files/noto-sans-latin-ext-400-normal.woff",
     ],
   },
   experimental: {

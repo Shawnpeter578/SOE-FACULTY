@@ -8,13 +8,8 @@ import { z } from "zod";
 
 const reviewSchema = z.object({
   proposalId: z.string().uuid(),
-  action: z.enum([
-    "UNDER_REVIEW",
-    "CHANGES_REQUESTED",
-    "REJECTED",
-    "APPROVED_BY_DEAN",
-  ]),
-  note: z.string().trim().max(3000).optional(),
+  action: z.enum(["REJECTED", "APPROVED_BY_DEAN"]),
+  note: z.string().trim().max(500).optional(),
 });
 
 export type ReviewState = {
@@ -57,36 +52,12 @@ export async function reviewProposal(
     };
   }
 
-  if (
-    !["SUBMITTED", "UNDER_REVIEW"].includes(proposal.status) &&
-    !(proposal.status === "CHANGES_REQUESTED" &&
-      action === "UNDER_REVIEW")
-  ) {
-    return {
-      success: false,
-      message: "This proposal cannot be reviewed in its current state.",
-    };
+  if (!["SUBMITTED", "UNDER_REVIEW", "CHANGES_REQUESTED"].includes(proposal.status)) {
+    return { success: false, message: "This proposal cannot be reviewed in its current state." };
   }
 
-  if (
-    ["CHANGES_REQUESTED", "REJECTED"].includes(action) &&
-    !note
-  ) {
-    return {
-      success: false,
-      message: "Please provide a reason for this decision.",
-    };
-  }
-
-  if (action === "CHANGES_REQUESTED" && proposal.status !== "UNDER_REVIEW") {
-    return {
-      success: false,
-      message: "Start the review before making a final decision.",
-    };
-  }
-
-  if ((action === "APPROVED_BY_DEAN" || action === "REJECTED") && note && note.length > 500) {
-    return { success: false, message: "Keep the decision note to 500 characters or fewer." };
+  if (action === "REJECTED" && !note) {
+    return { success: false, message: "Please provide a reason for this decision." };
   }
 
   const { data: updated, error: updateError } = await supabase
@@ -113,7 +84,7 @@ export async function reviewProposal(
 
   revalidatePath("/dean/proposals");
   revalidatePath(`/dean/proposals/${proposalId}`);
-  revalidatePath(`/dean/proposals/${proposalId}/letter`);
+  revalidatePath(`/faculty/events/${proposalId}/letter`);
   revalidatePath("/faculty/dashboard");
   revalidatePath("/faculty/events");
   revalidatePath(`/faculty/events/${proposalId}`);
@@ -124,10 +95,6 @@ export async function reviewProposal(
     message:
       action === "APPROVED_BY_DEAN"
         ? "Dean approval recorded successfully."
-        : action === "REJECTED"
-          ? "The reason has been shared with the faculty."
-          : action === "CHANGES_REQUESTED"
-            ? "Changes requested successfully."
-            : "Review started.",
+        : "The reason has been shared with the faculty.",
   };
 }

@@ -1,6 +1,6 @@
-import RequestLetterWorkspace from "@/components/request-letter-workspace";
+import { redirect } from "next/navigation";
 
-export default async function DeanRequestLetterPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function EventReviewRedirect({ params }: PageProps<"/dean/proposals/[id]/letter">) {
   const { id } = await params;
-  return <RequestLetterWorkspace id={id} roles={["DEAN"]} />;
+  redirect(`/dean/proposals/${id}`);
 }

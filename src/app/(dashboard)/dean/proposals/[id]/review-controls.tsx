@@ -1,11 +1,10 @@
 "use client";
 
 import { useActionState, useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 import { CheckCircle2, CircleX, Send, X } from "lucide-react";
 import { reviewProposal, type ReviewState } from "./actions";
 
-type Decision = "APPROVED_BY_DEAN" | "REJECTED" | "UNDER_REVIEW" | "CHANGES_REQUESTED";
+type Decision = "APPROVED_BY_DEAN" | "REJECTED";
 const initialState: ReviewState = { success: false, message: null };
 const primary = "inline-flex min-h-10 items-center justify-center rounded-lg px-4 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500";
 
@@ -16,12 +15,11 @@ export default function ReviewControls({ proposalId, status, title, facultyName,
   facultyName: string;
   dates: string;
 }) {
-  const router = useRouter();
   const dialog = useRef<HTMLDialogElement>(null);
   const [decision, setDecision] = useState<Decision | null>(null);
   const [notice, setNotice] = useState<{ title: string; message: string } | null>(null);
   const [pending, setPending] = useState(false);
-  const canDecide = status === "SUBMITTED" || status === "UNDER_REVIEW";
+  const canDecide = ["SUBMITTED", "UNDER_REVIEW", "CHANGES_REQUESTED"].includes(status);
 
   useEffect(() => {
     if (decision && !dialog.current?.open) dialog.current?.showModal();
@@ -29,11 +27,10 @@ export default function ReviewControls({ proposalId, status, title, facultyName,
 
   function completed(result: ReviewState) {
     setNotice({
-      title: decision === "APPROVED_BY_DEAN" ? "Request approved" : decision === "REJECTED" ? "Decision recorded · Event closed" : "Review updated",
+      title: decision === "APPROVED_BY_DEAN" ? "Request approved" : "Request rejected",
       message: result.message ?? "",
     });
     dialog.current?.close();
-    if (decision === "APPROVED_BY_DEAN") router.push(`/dean/proposals/${proposalId}/letter`);
   }
 
   return (
@@ -45,15 +42,12 @@ export default function ReviewControls({ proposalId, status, title, facultyName,
           <button type="button" onClick={() => setNotice(null)} aria-label="Dismiss confirmation"><X size={16} /></button>
         </div>
       )}
-      {(canDecide || status === "CHANGES_REQUESTED") && (
+      {canDecide && (
         <footer className="sticky bottom-14 z-20 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-brand-border bg-brand-surface px-4 py-2.5 shadow-sm lg:bottom-0">
-          <div><p className="text-sm font-semibold text-brand-primary">{canDecide ? "Ready for your decision" : "Changes requested"}</p><p className="mt-0.5 text-xs text-text-secondary">{canDecide ? "Dean approval enables the letter. VC approval is still required." : "Review the request again when it is ready."}</p></div>
+          <p className="text-sm font-semibold text-brand-primary">Ready for your decision</p>
           <div className="flex flex-wrap items-center gap-2.5">
-            {status === "UNDER_REVIEW" && <button type="button" onClick={() => setDecision("CHANGES_REQUESTED")} className="min-h-10 px-2 text-sm font-semibold text-brand-primary hover:underline">Request changes</button>}
-            {canDecide ? <>
-              <button type="button" onClick={() => setDecision("REJECTED")} className="min-h-10 rounded-lg border border-red-300 px-5 text-sm font-semibold text-red-700 hover:bg-red-50">Disapprove</button>
-              <button type="button" onClick={() => setDecision("APPROVED_BY_DEAN")} className={`${primary} min-w-28 bg-emerald-700 hover:bg-emerald-800`}>Approve</button>
-            </> : <button type="button" onClick={() => setDecision("UNDER_REVIEW")} className={`${primary} bg-brand-primary hover:bg-brand-hover`}>Resume review</button>}
+            <button type="button" onClick={() => setDecision("REJECTED")} className="min-h-10 rounded-lg border border-red-300 px-5 text-sm font-semibold text-red-700 hover:bg-red-50">Reject</button>
+            <button type="button" onClick={() => setDecision("APPROVED_BY_DEAN")} className={`${primary} min-w-28 bg-emerald-700 hover:bg-emerald-800`}>Approve</button>
           </div>
         </footer>
       )}
@@ -76,9 +70,7 @@ function DecisionForm({ decision, proposalId, title, facultyName, dates, onCompl
 }) {
   const [note, setNote] = useState("");
   const rejected = decision === "REJECTED";
-  const approved = decision === "APPROVED_BY_DEAN";
-  const needsNote = rejected || decision === "CHANGES_REQUESTED";
-  const maxLength = rejected || approved ? 500 : 3000;
+  const maxLength = 500;
 
   const [state, formAction, pending] = useActionState(async (previous: ReviewState, data: FormData) => {
     onPending(true);
@@ -101,23 +93,23 @@ function DecisionForm({ decision, proposalId, title, facultyName, dates, onCompl
         <span className={`grid size-10 place-items-center rounded-xl ${rejected ? "bg-danger-bg text-red-700" : "bg-brand-selected text-brand-primary"}`}>{rejected ? <CircleX size={19} aria-hidden="true" /> : <Send size={18} aria-hidden="true" />}</span>
         <button type="button" disabled={pending} onClick={onCancel} aria-label="Close decision dialog" className="rounded-lg p-2 text-text-secondary hover:bg-brand-canvas"><X size={18} /></button>
       </div>
-      <h2 id="dean-decision-title" className="mt-4 text-xl font-bold tracking-tight">{rejected ? "Disapprove this request?" : approved ? "Approve this request?" : needsNote ? "Request changes?" : "Resume review?"}</h2>
-      <p className="mt-2 text-sm text-text-secondary">{rejected ? `Disapproval closes the event. Your reason will be shared with ${facultyName}.` : approved ? `Approval opens the request letter for you and ${facultyName} to sign. VC approval is still required.` : "The request status will be updated for the faculty."}</p>
+      <h2 id="dean-decision-title" className="mt-4 text-xl font-bold tracking-tight">{rejected ? "Reject this request?" : "Approve this request?"}</h2>
+      <p className="mt-2 text-sm text-text-secondary">{rejected ? `Rejection closes the event. Your reason will be shared with ${facultyName}.` : `${facultyName} can prepare the request letter for VC review after approval.`}</p>
       <div className="mt-4 rounded-xl bg-brand-canvas px-4 py-3">
         <p className="break-words text-sm font-semibold">{title}</p>
         <p className="mt-1 text-xs text-text-secondary">{facultyName} · {dates}</p>
       </div>
-      <label htmlFor="dean-note" className="mt-5 block text-sm font-semibold">{rejected ? "Reason for disapproval (required)" : needsNote ? "Requested changes (required)" : "Remark (optional)"}</label>
+      <label htmlFor="dean-note" className="mt-5 block text-sm font-semibold">{rejected ? "Reason for rejection (required)" : "Remark (optional)"}</label>
       <div className="mt-2 rounded-xl border border-brand-border focus-within:border-brand-primary">
-        <textarea id="dean-note" name="note" value={note} onChange={(event) => setNote(event.target.value)} rows={4} required={needsNote} disabled={pending} maxLength={maxLength} placeholder={rejected ? "Explain why this event cannot proceed…" : "Add a remark for the faculty…"} className="block w-full resize-y rounded-xl px-3 pt-3 text-sm outline-none" />
+        <textarea id="dean-note" name="note" value={note} onChange={(event) => setNote(event.target.value)} rows={4} required={rejected} disabled={pending} maxLength={maxLength} placeholder={rejected ? "Explain why this event cannot proceed…" : "Add a remark for the faculty…"} className="block w-full resize-y rounded-xl px-3 pt-3 text-sm outline-none" />
         <span className="block px-3 pb-2 text-right text-xs tabular-nums text-text-secondary">{note.length} / {maxLength}</span>
       </div>
       {rejected && <p className="mt-2 text-xs text-text-secondary">{note.trim() ? "This reason will be visible to the faculty." : "Enter a reason to enable confirmation."}</p>}
       {state.message && !state.success && <p role="alert" className="mt-3 text-sm text-red-700">{state.message}</p>}
       <div className="mt-5 flex flex-wrap justify-end gap-2.5">
         <button type="button" onClick={onCancel} disabled={pending} className="min-h-10 rounded-lg border border-brand-primary/40 px-4 text-sm font-semibold text-brand-primary hover:bg-brand-canvas">Cancel</button>
-        <button type="submit" disabled={pending || (needsNote && !note.trim())} className={`${primary} ${rejected ? "bg-red-700 hover:bg-red-800" : approved ? "bg-emerald-700 hover:bg-emerald-800" : "bg-brand-primary hover:bg-brand-hover"}`}>
-          {pending ? "Saving…" : rejected ? "Confirm and close event" : approved ? "Confirm approval" : needsNote ? "Send feedback" : "Resume review"}
+        <button type="submit" disabled={pending || (rejected && !note.trim())} className={`${primary} ${rejected ? "bg-red-700 hover:bg-red-800" : "bg-emerald-700 hover:bg-emerald-800"}`}>
+          {pending ? "Saving…" : rejected ? "Confirm and close event" : "Confirm approval"}
         </button>
       </div>
     </form>

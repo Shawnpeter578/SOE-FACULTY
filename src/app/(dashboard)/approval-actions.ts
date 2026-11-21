@@ -4,7 +4,6 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireRole } from "@/lib/auth/guard";
 import { createClient } from "@/lib/supabase/server";
-import { EVENT_DOCUMENT_BUCKET } from "@/lib/event-approval";
 
 export type ApprovalState = { message: string; success: boolean };
 
@@ -14,7 +13,6 @@ const actions = {
   mark_printed: "FACULTY",
   vc_approve: "VC",
   vc_reject: "VC",
-  lock_document: "DEAN",
 } as const;
 
 export async function advanceApproval(proposalId: string, _previous: ApprovalState, formData: FormData): Promise<ApprovalState> {
@@ -26,7 +24,6 @@ export async function advanceApproval(proposalId: string, _previous: ApprovalSta
   await requireRole([actions[step]]);
   const supabase = await createClient();
   const args: Record<string, string | number | null> = { p_proposal_id: proposalId, p_action: step };
-  let uploadedPath: string | undefined;
 
   if (step === "save_details") {
     const budget = formData.get("budget");
@@ -47,27 +44,8 @@ export async function advanceApproval(proposalId: string, _previous: ApprovalSta
     args.p_note = note.trim() || null;
   }
 
-  if (step === "lock_document") {
-    const document = formData.get("document");
-    if (!(document instanceof File) || document.type !== "application/pdf" || document.size > 5 * 1024 * 1024 ||
-      await document.slice(0, 5).text() !== "%PDF-") {
-      return { message: "Choose a valid PDF of up to 5 MB.", success: false };
-    }
-    const { data: event, error } = await supabase.from("events").select("id, status, vc_decision")
-      .eq("proposal_id", proposalId).maybeSingle();
-    if (error || !event || event.status !== "AWAITING_VC_DOCUMENT" || event.vc_decision !== "APPROVED") {
-      return { message: "The Vice-Chancellor must approve the event before its letter can be uploaded.", success: false };
-    }
-    const path = `${event.id}/${crypto.randomUUID()}.pdf`;
-    const { error: uploadError } = await supabase.storage.from(EVENT_DOCUMENT_BUCKET).upload(path, document);
-    if (uploadError) return { message: "Could not upload the approval PDF. Please try again.", success: false };
-    uploadedPath = path;
-    args.p_document_path = path;
-  }
-
   const { error } = await supabase.rpc("advance_event_approval", args);
   if (error) {
-    if (uploadedPath) await supabase.storage.from(EVENT_DOCUMENT_BUCKET).remove([uploadedPath]);
     return {
       message: error.code === "22023" || error.code === "42501"
         ? "This action is unavailable. Refresh the page to see the current approval stage."
@@ -79,7 +57,6 @@ export async function advanceApproval(proposalId: string, _previous: ApprovalSta
   revalidatePath(`/faculty/events/${proposalId}`);
   revalidatePath(`/faculty/events/${proposalId}/letter`);
   revalidatePath(`/dean/proposals/${proposalId}`);
-  revalidatePath(`/dean/proposals/${proposalId}/letter`);
   revalidatePath("/dean/proposals");
   revalidatePath("/faculty/events");
   revalidatePath("/faculty/dashboard");

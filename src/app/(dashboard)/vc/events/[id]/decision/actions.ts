@@ -9,7 +9,7 @@ import { createClient } from "@/lib/supabase/server";
 import { vcEvidenceExtension, VC_REASON_MAX_LENGTH } from "@/lib/validation/vc-evidence";
 
 export async function recordDecision(id: string, formData: FormData): Promise<string> {
-  await requireRole(["DEAN"]);
+  await requireRole(["VC"]);
   const decision = formData.get("decision");
   const rawReason = formData.get("reason");
   const reason = typeof rawReason === "string" ? rawReason.trim() : "";
@@ -41,7 +41,7 @@ export async function recordDecision(id: string, formData: FormData): Promise<st
     if (error) return "Could not upload the document. Check your connection and try again.";
   }
 
-  const { error } = await supabase.rpc("record_dean_vc_decision", {
+  const { error } = await supabase.rpc("record_vc_decision", {
     p_proposal_id: id,
     p_decision: decision,
     p_reason: decision === "REJECTED" ? reason : null,
@@ -61,5 +61,5 @@ export async function recordDecision(id: string, formData: FormData): Promise<st
   revalidatePath(`/faculty/events/${id}`);
   revalidatePath(`/faculty/events/${id}/letter`);
   revalidatePath("/vc/dashboard");
-  redirect(`/dean/proposals/${id}/decision`);
+  redirect(`/vc/events/${id}/decision`);
 }

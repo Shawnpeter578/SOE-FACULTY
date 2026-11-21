@@ -96,7 +96,7 @@ test("request letter signatures require consent and send the signed revision wit
   const refreshed = [];
   const { updateRequestLetter } = loadSource("src/app/(dashboard)/request-letter-actions.ts", {
     "next/cache": { revalidatePath: (route) => refreshed.push(route) },
-    "@/lib/auth/guard": { requireRole: async (roles) => assert.deepEqual(roles, ["FACULTY", "DEAN"]) },
+    "@/lib/auth/guard": { requireRole: async (roles) => assert.deepEqual(roles, ["FACULTY"]) },
     "@/lib/supabase/server": { createClient: async () => ({ rpc: async (...args) => { calls.push(args); return { error: null }; } }) },
   });
   const initial = { message: "", success: false };
@@ -108,8 +108,21 @@ test("request letter signatures require consent and send the signed revision wit
   assert.deepEqual(calls[0], ["update_request_letter", {
     p_proposal_id: proposalId, p_action: "sign_letter", p_expected_details_at: detailsAt,
   }]);
-  assert.ok(refreshed.includes(`/dean/proposals/${proposalId}/letter`));
+  assert.ok(refreshed.includes(`/vc/events/${proposalId}/decision`));
   assert.ok(refreshed.includes(`/faculty/events/${proposalId}/letter`));
+
+  const body = "Dear Vice-Chancellor,\n\nHere is our custom request.";
+  assert.equal((await updateRequestLetter(proposalId, initial, approvalForm("save_draft", { body: " \n\t", closing: "" }))).success, false);
+  assert.equal((await updateRequestLetter(proposalId, initial, approvalForm("sign_letter", { body, closing: "" }))).success, false);
+  assert.equal(calls.length, 1);
+  assert.equal((await updateRequestLetter(proposalId, initial, approvalForm("save_draft", { body, closing: "", detailsAt }))).success, true);
+  assert.deepEqual(calls[1], ["prepare_request_letter", {
+    p_proposal_id: proposalId, p_action: "save_draft", p_body: body, p_closing: "", p_expected_details_at: detailsAt,
+  }]);
+  assert.equal((await updateRequestLetter(proposalId, initial, approvalForm("sign_letter", { body, closing: "Respectfully,", consent: "yes", detailsAt }))).success, true);
+  assert.deepEqual(calls[2], ["prepare_request_letter", {
+    p_proposal_id: proposalId, p_action: "sign_letter", p_body: body, p_closing: "Respectfully,", p_expected_details_at: detailsAt,
+  }]);
 });
 
 test("approval actions validate stage input before committing changes", async () => {
@@ -136,29 +149,30 @@ test("approval actions validate stage input before committing changes", async ()
   assert.ok(revalidated.includes("/vc/dashboard"));
 });
 
-test("a failed signed approval lock removes the temporary upload", async () => {
+test("a failed VC decision removes the temporary upload", async () => {
   const eventId = "00000000-0000-4000-8000-000000000030";
   const uploads = [];
   const removed = [];
   let lockPath;
-  const query = { select: () => query, eq: () => query, maybeSingle: async () => ({ data: { id: eventId, status: "AWAITING_VC_DOCUMENT", vc_decision: "APPROVED" }, error: null }) };
+  const query = { select: () => query, eq: () => query, maybeSingle: async () => ({ data: { id: eventId, status: "AWAITING_VC_DOCUMENT", vc_decision: "APPROVED", vc_recorded_at: null, letter_printed_at: "2026-11-21T12:00:00Z" }, error: null }) };
   const client = {
     from: () => query,
     storage: { from: () => ({ upload: async (key) => { uploads.push(key); return { error: null }; }, remove: async (keys) => removed.push(...keys) }) },
     rpc: async (_name, args) => { lockPath = args.p_document_path; return { error: { code: "22023" } }; },
   };
-  const { advanceApproval } = loadSource("src/app/(dashboard)/approval-actions.ts", {
+  const { recordDecision } = loadSource("src/app/(dashboard)/vc/events/[id]/decision/actions.ts", {
+    "next/navigation": { redirect: () => assert.fail("A failed transition cannot redirect") },
+    "@/lib/validation/vc-evidence": loadSource("src/lib/validation/vc-evidence.ts"),
     "next/cache": { revalidatePath: () => assert.fail("A failed transition cannot revalidate approval pages") },
-    "@/lib/auth/guard": { requireRole: async (allowed) => assert.deepEqual(allowed, ["DEAN"]) },
+    "@/lib/auth/guard": { requireRole: async (allowed) => assert.deepEqual(allowed, ["VC"]) },
     "@/lib/supabase/server": { createClient: async () => client },
   });
-  const initial = { message: "", success: false };
   const forged = new File(["not a PDF"], "approval.pdf", { type: "application/pdf" });
-  assert.equal((await advanceApproval(proposalId, initial, approvalForm("lock_document", { document: forged }))).success, false);
+  assert.match(await recordDecision(proposalId, approvalForm("decision", { decision: "APPROVED", document: forged })), /valid PDF/);
   assert.deepEqual(uploads, []);
 
   const pdf = new File(["%PDF-1.4\n"], "approval.pdf", { type: "application/pdf" });
-  assert.equal((await advanceApproval(proposalId, initial, approvalForm("lock_document", { document: pdf }))).success, false);
+  assert.match(await recordDecision(proposalId, approvalForm("decision", { decision: "APPROVED", document: pdf })), /no longer available/);
   assert.equal(uploads.length, 1);
   assert.match(lockPath, new RegExp(`^${eventId}/[0-9a-f-]+\\.pdf$`));
   assert.deepEqual(removed, uploads);

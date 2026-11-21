@@ -5,9 +5,8 @@ import { ArrowLeft, ArrowUpRight, CalendarDays, CheckCircle2, ChevronDown, Circl
 import { requireRole } from "@/lib/auth/guard";
 import { createClient } from "@/lib/supabase/server";
 import { signProposalAttachments } from "@/lib/supabase/proposal-attachments";
-import { EVENT_DOCUMENT_BUCKET, formatApprovalTime, formatEventBudget, formatEventDateRange, formatEventTime, vcApprovalFileName, type ApprovalEvent } from "@/lib/event-approval";
+import { formatApprovalTime, formatEventBudget, formatEventDateRange, formatEventTime, type ApprovalEvent } from "@/lib/event-approval";
 import RouteRefresh from "@/components/route-refresh";
-import ApprovalControls from "@/components/approval-controls";
 import { getStatusLabel, getStatusStyle } from "../../../faculty/events/event-status";
 import ReviewControls from "./review-controls";
 
@@ -73,9 +72,6 @@ export default async function ProposalDetailsPage({ params }: { params: Promise<
   ]);
   if (eventError) throw new Error("Unable to load the event approval journey.");
 
-  const document = event?.vc_approval_document_path
-    ? await supabase.storage.from(EVENT_DOCUMENT_BUCKET).createSignedUrl(event.vc_approval_document_path, 3600, { download: vcApprovalFileName(event) })
-    : null;
   const facultyName = faculty?.full_name ?? "Faculty member";
   const dates = formatEventDateRange(proposal.start_date, proposal.end_date);
   const times = [proposal.start_time, proposal.end_time].filter((time): time is string => typeof time === "string").map(formatEventTime).join(" – ");
@@ -84,14 +80,6 @@ export default async function ProposalDetailsPage({ params }: { params: Promise<
   const approved = proposal.status === "APPROVED_BY_DEAN";
   const decisionAt = proposal.reviewed_at ?? reviews?.[0]?.created_at;
   const decisionBy = proposal.reviewed_by === dean.id ? dean.full_name : "Dean";
-  const needsLetter = approved && !event?.letter_generated_at;
-  const needsSignedApproval = event?.vc_decision === "APPROVED" && event.status === "AWAITING_VC_DOCUMENT";
-  const decisionComplete = event?.status === "OFFICIALLY_APPROVED" || event?.status === "REJECTED_BY_VC";
-  const vcStatus = event?.vc_decision === "REJECTED" ? "Request declined by the Vice-Chancellor."
-    : event?.status === "OFFICIALLY_APPROVED" ? "The event is officially approved."
-    : event?.vc_decision === "APPROVED" ? "Accepted by the VC. Upload the signed copy to lock the event."
-    : event?.letter_printed_at ? "Awaiting the Vice-Chancellor’s decision."
-    : "Waiting for faculty to prepare and print the request letter.";
   const DecisionIcon = rejected ? CircleX : CheckCircle2;
   const statusLabel = status === "SUBMITTED" ? "Pending Dean review"
     : rejected ? "Closed"
@@ -133,12 +121,12 @@ export default async function ProposalDetailsPage({ params }: { params: Promise<
           <DecisionIcon size={19} className="mt-0.5 shrink-0" aria-hidden="true" />
           <div className="min-w-0 flex-1 [overflow-wrap:anywhere]">
             <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-              <h2 className="font-semibold">{rejected ? "Event closed" : needsLetter ? "Awaiting letter generation" : "Dean approval recorded"}</h2>
+              <h2 className="font-semibold">{rejected ? "Event closed" : "Dean approval recorded"}</h2>
               {decisionAt && <p className="text-xs text-text-secondary">{decisionBy} · {formatApprovalTime(decisionAt)}</p>}
             </div>
             <div className="mt-1 text-text-secondary">
               {rejected ? <ReviewText text={proposal.review_note || "No reason recorded."} label="full reason" /> : (
-                <p>{needsLetter ? "The dean and faculty can prepare and sign the request letter for VC review." : "Open the letter to check the signatures and print status."}</p>
+                <p>The faculty member can prepare the request letter for VC review.</p>
               )}
             </div>
             {approved && proposal.review_note && (
@@ -147,10 +135,6 @@ export default async function ProposalDetailsPage({ params }: { params: Promise<
                 <ReviewText text={proposal.review_note} label="full remark" />
               </div>
             )}
-            {approved && event && <div className="mt-2 flex flex-wrap gap-2">
-              <Link href={`/dean/proposals/${id}/letter`} className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold ${event.letter_printed_at ? "border border-brand-border text-brand-primary hover:bg-brand-selected" : "bg-brand-primary text-white hover:bg-brand-hover"}`}>{event.letter_printed_at ? "View request letter" : event.letter_generated_at ? "Open request letter" : "Generate request letter"} <ArrowUpRight size={15} aria-hidden="true" /></Link>
-              {event.letter_printed_at && <Link href={`/dean/proposals/${id}/decision`} className="inline-flex items-center gap-1.5 rounded-lg bg-brand-primary px-3 py-2 text-sm font-semibold text-white hover:bg-brand-hover">{decisionComplete ? "View VC decision" : "Record VC decision"} <ArrowUpRight size={15} aria-hidden="true" /></Link>}
-            </div>}
           </div>
         </section>
       )}
@@ -212,42 +196,21 @@ export default async function ProposalDetailsPage({ params }: { params: Promise<
         </DetailCard>
       </div>
 
-      {(event || Boolean(reviews?.length)) && (
-        <div className="grid items-start gap-3 @min-[42rem]:grid-flow-col @min-[42rem]:auto-cols-fr">
-          {event && (
-            <details className="group min-w-0 rounded-xl border border-brand-border bg-brand-surface px-4">
-              <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-2 rounded-md text-sm font-semibold text-brand-primary [&::-webkit-details-marker]:hidden">
-                {needsSignedApproval ? "Upload signed VC approval" : "Vice-Chancellor review"}
-                <ChevronDown size={16} className="shrink-0 transition-transform group-open:rotate-180" aria-hidden="true" />
-              </summary>
-              <div className="space-y-2 border-t border-brand-border pb-4 pt-3">
-                <p className="text-sm text-text-secondary">{vcStatus}</p>
-                {event.vc_decided_at && <p className="whitespace-pre-wrap break-words text-sm text-text-secondary">{formatApprovalTime(event.vc_decided_at)}{event.vc_note && ` · ${event.vc_note}`}</p>}
-                <div className="flex flex-wrap gap-x-4 gap-y-2">
-                  {event.letter_generated_at && <Link href={`/dean/proposals/${id}/letter`} className="text-sm font-semibold text-brand-primary hover:underline">View request letter</Link>}
-                  {document?.data?.signedUrl && <a className="text-sm font-semibold text-brand-primary hover:underline" href={document.data.signedUrl}>Download signed approval</a>}
-                </div>
-                {needsSignedApproval && !("vc_recorded_at" in event) && <ApprovalControls mode="lock" proposalId={id} />}
-              </div>
-            </details>
-          )}
-          {reviews?.length ? (
-            <details className="group min-w-0 rounded-xl border border-brand-border bg-brand-surface px-4">
-              <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-2 rounded-md text-sm font-semibold text-brand-primary [&::-webkit-details-marker]:hidden">
-                Decision history
-                <ChevronDown size={16} className="shrink-0 transition-transform group-open:rotate-180" aria-hidden="true" />
-              </summary>
-              <ul className="divide-y divide-brand-border border-t border-brand-border pb-2">
-                {reviews.map((review) => <li key={review.id} className="py-2 text-sm">
-                  <p className="font-semibold">{getStatusLabel(review.action)}</p>
-                  {review.note && <p className="whitespace-pre-wrap break-words">{review.note}</p>}
-                  <p className="text-xs text-text-secondary">{formatApprovalTime(review.created_at)}</p>
-                </li>)}
-              </ul>
-            </details>
-          ) : null}
-        </div>
-      )}
+      {reviews?.length ? (
+        <details className="group min-w-0 rounded-xl border border-brand-border bg-brand-surface px-4">
+          <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-2 rounded-md text-sm font-semibold text-brand-primary [&::-webkit-details-marker]:hidden">
+            Decision history
+            <ChevronDown size={16} className="shrink-0 transition-transform group-open:rotate-180" aria-hidden="true" />
+          </summary>
+          <ul className="divide-y divide-brand-border border-t border-brand-border pb-2">
+            {reviews.map((review) => <li key={review.id} className="py-2 text-sm">
+              <p className="font-semibold">{getStatusLabel(review.action)}</p>
+              {review.note && <p className="whitespace-pre-wrap break-words">{review.note}</p>}
+              <p className="text-xs text-text-secondary">{formatApprovalTime(review.created_at)}</p>
+            </li>)}
+          </ul>
+        </details>
+      ) : null}
 
       <ReviewControls key={id} proposalId={id} status={proposal.status} title={proposal.title} facultyName={facultyName} dates={dates} />
     </div>
