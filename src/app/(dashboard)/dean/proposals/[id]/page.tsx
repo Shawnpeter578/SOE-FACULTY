@@ -1,13 +1,12 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, ArrowUpRight, CalendarDays, CheckCircle2, ChevronDown, CircleX, ClipboardList, Clock3, FileText, Paperclip, UserRound, UsersRound, Wallet, type LucideIcon } from "lucide-react";
+import { ArrowLeft, ArrowUpRight, CalendarDays, CheckCircle2, ChevronDown, CircleX, ClipboardList, Clock3, Download, FileText, Paperclip, UserRound, UsersRound, Wallet, type LucideIcon } from "lucide-react";
 import { requireRole } from "@/lib/auth/guard";
 import { getProfilePreferences } from "@/lib/profile-preferences-server";
 import { createClient } from "@/lib/supabase/server";
 import { signProposalAttachments } from "@/lib/supabase/proposal-attachments";
-import { formatApprovalTime, formatEventBudget, formatEventDateRange, formatEventTime, type ApprovalEvent } from "@/lib/event-approval";
-import RouteRefresh from "@/components/route-refresh";
+import { formatApprovalTime, formatEventBudget, formatEventDateRange, formatEventTime, vcApprovalFileName, type ApprovalEvent } from "@/lib/event-approval";
 import { getStatusLabel, getStatusStyle } from "../../../faculty/events/event-status";
 import ReviewControls from "./review-controls";
 
@@ -80,6 +79,7 @@ export default async function ProposalDetailsPage({ params }: { params: Promise<
   const status = event?.status ?? proposal.status;
   const rejected = proposal.status === "REJECTED";
   const approved = proposal.status === "APPROVED_BY_DEAN";
+  const receivedLetter = event?.status === "OFFICIALLY_APPROVED" && event.vc_approval_document_path ? event : null;
   const decisionAt = proposal.reviewed_at ?? reviews?.[0]?.created_at;
   const decisionBy = proposal.reviewed_by === dean.id ? dean.full_name : "Dean";
   const DecisionIcon = rejected ? CircleX : CheckCircle2;
@@ -93,7 +93,6 @@ export default async function ProposalDetailsPage({ params }: { params: Promise<
 
   return (
     <div className="@container mx-auto max-w-[80rem] space-y-3 py-4 sm:space-y-4">
-      <RouteRefresh />
       <header className={panel}>
         <Link href="/dean/proposals" className="inline-flex items-center gap-2 rounded-md text-sm font-medium text-text-secondary hover:text-brand-primary focus-visible:outline-2 focus-visible:outline-brand-primary">
           <ArrowLeft size={15} aria-hidden="true" /> Back to requests
@@ -128,7 +127,7 @@ export default async function ProposalDetailsPage({ params }: { params: Promise<
             </div>
             <div className="mt-1 text-text-secondary">
               {rejected ? <ReviewText text={proposal.review_note || "No reason recorded."} label="full reason" /> : (
-                <p>The faculty member can prepare the request letter for VC review.</p>
+                <p>{receivedLetter ? "The Vice-Chancellor approved this event." : "The faculty member can prepare the request letter for VC review."}</p>
               )}
             </div>
             {approved && proposal.review_note && (
@@ -140,6 +139,20 @@ export default async function ProposalDetailsPage({ params }: { params: Promise<
           </div>
         </section>
       )}
+
+      {receivedLetter && <section id="vc-signed-letter" aria-labelledby="vc-signed-letter-title" className={`${panel} flex scroll-mt-4 flex-wrap items-center justify-between gap-3`}>
+        <div className="flex min-w-0 items-start gap-3">
+          <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-success-bg text-emerald-800"><FileText size={18} aria-hidden="true" /></span>
+          <div className="min-w-0">
+            <h2 id="vc-signed-letter-title" className="font-bold text-brand-primary">VC-signed letter</h2>
+            <p className="mt-0.5 text-sm text-text-secondary [overflow-wrap:anywhere]">{receivedLetter.vc_recorded_file_name || vcApprovalFileName(receivedLetter)}</p>
+            {receivedLetter.vc_document_uploaded_at && <p className="mt-0.5 text-xs text-text-secondary">Received <time dateTime={receivedLetter.vc_document_uploaded_at}>{formatApprovalTime(receivedLetter.vc_document_uploaded_at)}</time></p>}
+          </div>
+        </div>
+        <a href={`/dean/proposals/${id}/signed-letter`} download className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-brand-primary px-3.5 text-sm font-semibold text-white hover:bg-brand-hover">
+          <Download size={16} aria-hidden="true" /> Download signed copy
+        </a>
+      </section>}
 
       <div className="grid gap-3 @min-[30rem]:grid-cols-2 @min-[42rem]:grid-cols-3">
         <DetailCard title="Event information" icon={FileText}>

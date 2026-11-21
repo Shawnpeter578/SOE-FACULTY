@@ -7,21 +7,15 @@ import { createClient } from "@/lib/supabase/server";
 
 export type ApprovalState = { message: string; success: boolean };
 
-const actions = {
-  generate_letter: "FACULTY",
-  save_details: "FACULTY",
-  mark_printed: "FACULTY",
-  vc_approve: "VC",
-  vc_reject: "VC",
-} as const;
+const actions = z.enum(["generate_letter", "save_details", "mark_printed"]);
 
 export async function advanceApproval(proposalId: string, _previous: ApprovalState, formData: FormData): Promise<ApprovalState> {
-  const action = formData.get("action");
-  if (typeof action !== "string" || !Object.hasOwn(actions, action) || !z.string().uuid().safeParse(proposalId).success) {
+  const action = actions.safeParse(formData.get("action"));
+  if (!action.success || !z.string().uuid().safeParse(proposalId).success) {
     return { message: "Choose a valid approval action.", success: false };
   }
-  const step = action as keyof typeof actions;
-  await requireRole([actions[step]]);
+  const step = action.data;
+  await requireRole(["FACULTY"]);
   const supabase = await createClient();
   const args: Record<string, string | number | null> = { p_proposal_id: proposalId, p_action: step };
 
@@ -34,14 +28,6 @@ export async function advanceApproval(proposalId: string, _previous: ApprovalSta
     }
     args.p_budget = Number(budget);
     args.p_requirements = requirements.trim();
-  }
-
-  if (step === "vc_approve" || step === "vc_reject") {
-    const note = formData.get("note");
-    if (typeof note !== "string" || note.trim().length > 3000 || (step === "vc_reject" && !note.trim())) {
-      return { message: "Enter a reason when declining a request. Remarks can be up to 3,000 characters.", success: false };
-    }
-    args.p_note = note.trim() || null;
   }
 
   const { error } = await supabase.rpc("advance_event_approval", args);
@@ -61,6 +47,5 @@ export async function advanceApproval(proposalId: string, _previous: ApprovalSta
   revalidatePath("/faculty/events");
   revalidatePath("/faculty/dashboard");
   revalidatePath("/dean/dashboard");
-  revalidatePath("/vc/dashboard");
   return { message: "Approval journey updated.", success: true };
 }

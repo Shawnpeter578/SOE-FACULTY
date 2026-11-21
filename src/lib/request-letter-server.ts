@@ -3,33 +3,31 @@ import "server-only";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { z } from "zod";
-import { requireRole, type AppRole } from "@/lib/auth/guard";
+import { requireRole } from "@/lib/auth/guard";
 import { createClient } from "@/lib/supabase/server";
 import { formatEventBudget, formatEventDateRange, formatEventTime, type ApprovalEvent, type LetterEventDetails } from "@/lib/event-approval";
 import type { RequestLetter } from "@/lib/request-letter";
 import { parseSignature } from "@/lib/profile-signature";
 
-export async function loadRequestLetter(id: string, roles: AppRole[]) {
-  const profile = await requireRole(roles);
+export async function loadRequestLetter(id: string) {
+  const profile = await requireRole(["FACULTY"]);
   if (!z.uuid().safeParse(id).success) notFound();
 
   const supabase = await createClient();
-  const query = supabase.from("events").select("*").eq("proposal_id", id);
-  if (profile.role === "FACULTY") query.eq("created_by", profile.id);
-  const { data: event, error } = await query.maybeSingle<ApprovalEvent>();
+  const { data: event, error } = await supabase.from("events").select("*")
+    .eq("proposal_id", id).eq("created_by", profile.id).maybeSingle<ApprovalEvent>();
   if (error) throw new Error("Unable to load the request letter.");
-  if (!event || (profile.role === "VC" && !event.letter_printed_at)) notFound();
+  if (!event) notFound();
 
-  const { data: proposal, error: proposalError } = profile.role === "VC" ? { data: null, error: null } : await supabase
+  const { data: proposal, error: proposalError } = await supabase
     .from("event_proposals")
     .select("status,reviewed_at,department,start_time,end_time,duration,expected_participants,target_audience,objectives,estimated_budget,special_requirements")
-    .eq("id", id).maybeSingle();
+    .eq("id", id).eq("created_by", profile.id).maybeSingle();
   if (proposalError) throw new Error("Unable to load the approved request.");
-  if (profile.role !== "VC" && proposal?.status !== "APPROVED_BY_DEAN") notFound();
+  if (proposal?.status !== "APPROVED_BY_DEAN") notFound();
 
   const faculty = event.letter_faculty_name && (event.letter_faculty_signed_at || event.letter_printed_at)
-    ? event.letter_faculty_name : profile.role === "FACULTY" ? profile.full_name
-    : event.letter_faculty_name ?? "Faculty coordinator";
+    ? event.letter_faculty_name : profile.full_name;
   const details: LetterEventDetails = event.letter_event_details ?? {
     department: proposal?.department,
     startTime: proposal?.start_time,
@@ -44,8 +42,8 @@ export async function loadRequestLetter(id: string, roles: AppRole[]) {
   const ready = Boolean(event.letter_generated_at && event.letter_faculty_signed_at);
   const signingAvailable = "letter_faculty_signed_at" in event;
   const textEditingAvailable = "letter_body" in event;
-  const canUpdate = signingAvailable && profile.role === "FACULTY" && !event.letter_printed_at && event.status === "AWAITING_VC_DOCUMENT";
-  const back = profile.role === "FACULTY" ? `/faculty/events/${id}` : "/vc/dashboard";
+  const canUpdate = signingAvailable && !event.letter_printed_at && event.status === "AWAITING_VC_DOCUMENT";
+  const back = `/faculty/events/${id}`;
   const year = (event.letter_generated_at ?? event.letter_printed_at ?? event.start_date).slice(0, 4);
   const letter: RequestLetter = {
     id, title: event.title, description: event.description, venue: event.venue, faculty, dean,

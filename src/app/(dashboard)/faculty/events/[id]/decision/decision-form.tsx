@@ -89,7 +89,7 @@ export default function DecisionForm({ id, title, alreadyAccepted }: { id: strin
 
       <dialog ref={dialog} aria-labelledby="vc-confirm-title" onCancel={(event) => { if (pending) event.preventDefault(); }} className="m-auto w-[min(29rem,calc(100%-2rem))] rounded-2xl border border-brand-border bg-brand-surface p-5 text-text-primary shadow-xl backdrop:bg-brand-hover/40 sm:p-6">
         <h2 id="vc-confirm-title" className="text-xl font-bold text-brand-primary">{accepted ? "Lock this event?" : "Close this event?"}</h2>
-        <p className="mt-2 text-sm text-text-secondary">{accepted ? `Confirming records VC acceptance and locks ${title}. The letter, signed copy, budget and requirements become read-only.` : `Confirming records the VC’s rejection and permanently closes ${title}. The reason becomes read-only.`}</p>
+        <p className="mt-2 text-sm text-text-secondary">{accepted ? `Confirming records VC acceptance and locks ${title}. The signed copy goes to the Dean, and the approval documents become read-only.` : `Confirming records the VC’s rejection and permanently closes ${title}. The reason becomes read-only.`}</p>
         {message && <p role="alert" className="mt-3 text-sm text-red-800">{message}</p>}
         <form action={submit} className="mt-5 grid gap-2 sm:grid-cols-2">
           <input type="hidden" name="decision" value={outcome ?? ""} />

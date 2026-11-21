@@ -57,8 +57,8 @@ export async function updateRequestLetter(proposalId: string, _previous: LetterA
 
   for (const path of [
     `/faculty/events/${proposalId}`, `/faculty/events/${proposalId}/letter`,
-    `/dean/proposals/${proposalId}`, `/vc/events/${proposalId}/decision`,
-    "/faculty/dashboard", "/dean/dashboard", "/dean/proposals", "/vc/dashboard",
+    `/dean/proposals/${proposalId}`, `/faculty/events/${proposalId}/decision`,
+    "/faculty/dashboard", "/dean/dashboard", "/dean/proposals",
   ]) revalidatePath(path);
 
   const message = parsed.data.action === "save_draft" ? "Letter draft saved."

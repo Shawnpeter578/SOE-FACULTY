@@ -1,4 +1,3 @@
-import RouteRefresh from "@/components/route-refresh";
 import EventRequestsList, { type EventListRequest } from "@/components/event-requests-list";
 import { createClient } from "@/lib/supabase/server";
 import { getDeanAccount } from "../account";
@@ -37,10 +36,5 @@ export default async function DeanProposalsPage({ searchParams }: PageProps<"/de
   }
   const requests = rows.map((row) => ({ ...row, submittedBy: names.get(row.created_by) ?? "Faculty member" }));
 
-  return (
-    <>
-      <RouteRefresh />
-      <EventRequestsList requests={requests} searchParams={filters} workspace="dean" />
-    </>
-  );
+  return <EventRequestsList requests={requests} searchParams={filters} workspace="dean" />;
 }

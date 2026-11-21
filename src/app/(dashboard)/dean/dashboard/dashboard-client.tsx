@@ -405,6 +405,7 @@ function activityLabel(status: string) {
     UNDER_REVIEW: "Review started",
     CHANGES_REQUESTED: "Changes requested",
     APPROVED_BY_DEAN: "Dean approval recorded",
+    OFFICIALLY_APPROVED: "VC-signed letter received",
     REJECTED: "Request closed",
   };
   return labels[status] ?? statusLabel(status);

@@ -9,7 +9,7 @@ import { createClient } from "@/lib/supabase/server";
 import { vcEvidenceExtension, VC_REASON_MAX_LENGTH } from "@/lib/validation/vc-evidence";
 
 export async function recordDecision(id: string, formData: FormData): Promise<string> {
-  await requireRole(["VC"]);
+  const profile = await requireRole(["FACULTY"]);
   const decision = formData.get("decision");
   const rawReason = formData.get("reason");
   const reason = typeof rawReason === "string" ? rawReason.trim() : "";
@@ -28,7 +28,7 @@ export async function recordDecision(id: string, formData: FormData): Promise<st
 
   const supabase = await createClient();
   const { data: event, error: loadError } = await supabase.from("events").select("*")
-    .eq("proposal_id", id).maybeSingle<ApprovalEvent>();
+    .eq("proposal_id", id).eq("created_by", profile.id).maybeSingle<ApprovalEvent>();
   if (loadError || !event?.letter_printed_at || event.status !== "AWAITING_VC_DOCUMENT" || (event.vc_decision && event.vc_decision !== decision)) {
     return "This decision is no longer available. Refresh to see the current approval stage.";
   }
@@ -38,10 +38,10 @@ export async function recordDecision(id: string, formData: FormData): Promise<st
   const path = extension ? `${event.id}/${crypto.randomUUID()}.${extension}` : null;
   if (path && evidence) {
     const { error } = await documents.upload(path, evidence, { contentType: evidence.type });
-    if (error) return "Could not upload the document. Check your connection and try again.";
+    if (error) return "Could not upload the document. Refresh to check the event status and try again.";
   }
 
-  const { error } = await supabase.rpc("record_vc_decision", {
+  const { error } = await supabase.rpc("record_faculty_vc_decision", {
     p_proposal_id: id,
     p_decision: decision,
     p_reason: decision === "REJECTED" ? reason : null,
@@ -50,6 +50,7 @@ export async function recordDecision(id: string, formData: FormData): Promise<st
   });
   if (error) {
     if (path) await documents.remove([path]);
+    if (error.code === "PGRST202") return "Recording a VC decision requires the latest EventDesk database update.";
     return error.code === "22023" || error.code === "42501"
       ? "This decision is no longer available. Refresh to see the current approval stage."
       : "Could not record the decision. Please try again.";
@@ -60,6 +61,11 @@ export async function recordDecision(id: string, formData: FormData): Promise<st
   revalidatePath("/faculty/events");
   revalidatePath(`/faculty/events/${id}`);
   revalidatePath(`/faculty/events/${id}/letter`);
-  revalidatePath("/vc/dashboard");
-  redirect(`/vc/events/${id}/decision`);
+  revalidatePath(`/faculty/events/${id}/decision`);
+  if (decision === "APPROVED") {
+    revalidatePath("/faculty/committees");
+    revalidatePath(`/faculty/committees/${event.id}`);
+    redirect(`/faculty/committees/${event.id}?locked=1`);
+  }
+  redirect(`/faculty/events/${id}/decision`);
 }

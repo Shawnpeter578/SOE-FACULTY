@@ -30,6 +30,75 @@ const { validateAttachments, MAX_ATTACHMENT_BYTES } = loadSource("src/lib/valida
 const facultyId = "00000000-0000-4000-8000-000000000010";
 const proposalId = "00000000-0000-4000-8000-000000000020";
 
+test("the approving dean gets a recent activity link for the confirmed signed letter", async () => {
+  const deanId = "00000000-0000-4000-8000-000000000012";
+  const filters = [];
+  const eventId = "00000000-0000-4000-8000-000000000030";
+  const { getDeanRecentActivity } = loadSource("src/app/(dashboard)/dean/recent-activity.ts", {
+    "server-only": {},
+    react: { cache: (read) => read },
+    "./account": { getDeanAccount: async () => ({ id: deanId }) },
+    "@/lib/supabase/server": { createClient: async () => ({
+      from(table) {
+        const query = {
+          select: () => query, order: () => query, limit: () => query, neq: () => query,
+          eq: (...args) => { filters.push([table, ...args]); return query; },
+          not: (...args) => { filters.push([table, ...args]); return query; },
+          overrideTypes: async () => ({ data: table === "events"
+            ? [{ id: eventId, proposal_id: proposalId, title: "Workshop", vc_document_uploaded_at: "2026-11-20T10:00:00Z" }]
+            : [{ id: proposalId, title: "Workshop", status: "APPROVED_BY_DEAN", updated_at: "2026-11-19T09:00:00Z" }] }),
+        };
+        return query;
+      },
+    }) },
+  });
+  const activity = await getDeanRecentActivity();
+  assert.deepEqual(filters, [
+    ["events", "status", "OFFICIALLY_APPROVED"], ["events", "proposal.reviewed_by", deanId],
+    ["events", "vc_approval_document_path", "is", null], ["events", "vc_document_uploaded_at", "is", null],
+  ]);
+  assert.equal(activity.length, 2);
+  assert.equal(activity[0].href, `/dean/proposals/${proposalId}#vc-signed-letter`);
+  assert.equal(activity[0].status, "OFFICIALLY_APPROVED");
+});
+
+test("the Dean signed-letter endpoint uses a private download for the final uploaded copy", async () => {
+  const filters = [];
+  const path = "event/final-signed-copy.png";
+  const url = "https://example.test/storage/signed-copy?token=temporary";
+  let role = "DEAN";
+  let data = null;
+  const downloads = [];
+  const query = {
+    select: () => query,
+    eq: (...args) => { filters.push(args); return query; },
+    maybeSingle: async () => ({ data, error: null }),
+  };
+  const { GET } = loadSource("src/app/(dashboard)/dean/proposals/[id]/signed-letter/route.ts", {
+    "@/lib/auth/guard": { requireRole: async (roles) => { if (!roles.includes(role)) throw new Error("Access denied"); } },
+    "@/lib/supabase/server": { createClient: async () => ({
+      from: () => query,
+      storage: { from: (bucket) => ({ createSignedUrl: async (...args) => {
+        downloads.push([bucket, ...args]);
+        return { data: { signedUrl: url } };
+      } }) },
+    }) },
+  });
+  const request = () => GET(new Request("https://example.test"), { params: Promise.resolve({ id: proposalId }) });
+  role = "FACULTY";
+  await assert.rejects(request(), /Access denied/);
+  role = "DEAN";
+  assert.equal((await request()).status, 404);
+  assert.equal(downloads.length, 0);
+  data = { vc_approval_document_path: path };
+  const response = await request();
+  assert.deepEqual(filters.slice(-2), [["proposal_id", proposalId], ["status", "OFFICIALLY_APPROVED"]]);
+  assert.equal(response.status, 303);
+  assert.equal(response.headers.get("Location"), url);
+  assert.equal(response.headers.get("Cache-Control"), "private, no-store");
+  assert.deepEqual(downloads, [["event-documents", path, 300, { download: "VC approval.png" }]]);
+});
+
 test("faculty notifications combine owned approval updates and load the full history", async () => {
   const notificationDirectory = "src/app/(dashboard)/faculty/notifications";
   const mapper = loadSource(`${notificationDirectory}/notification-items.ts`);
@@ -108,7 +177,7 @@ test("request letter signatures require consent and send the signed revision wit
   assert.deepEqual(calls[0], ["update_request_letter", {
     p_proposal_id: proposalId, p_action: "sign_letter", p_expected_details_at: detailsAt,
   }]);
-  assert.ok(refreshed.includes(`/vc/events/${proposalId}/decision`));
+  assert.ok(refreshed.includes(`/faculty/events/${proposalId}/decision`));
   assert.ok(refreshed.includes(`/faculty/events/${proposalId}/letter`));
 
   const body = "Dear Vice-Chancellor,\n\nHere is our custom request.";
@@ -136,35 +205,43 @@ test("approval actions validate stage input before committing changes", async ()
   });
   const initial = { message: "", success: false };
   const invalid = await advanceApproval(proposalId, initial, approvalForm("save_details", { budget: "-10", requirements: "Room" }));
-  const refusalWithoutReason = await advanceApproval(proposalId, initial, approvalForm("vc_reject", { note: "  " }));
+  const legacyDecision = await advanceApproval(proposalId, initial, approvalForm("vc_reject", { note: "Unavailable venue" }));
   assert.equal(invalid.success, false);
-  assert.equal(refusalWithoutReason.success, false);
+  assert.equal(legacyDecision.success, false);
   assert.deepEqual(calls, []);
 
   const saved = await advanceApproval(proposalId, initial, approvalForm("save_details", { budget: "2400.75", requirements: "  Laptops  " }));
   assert.equal(saved.success, true);
-  assert.deepEqual(roles, ["FACULTY", "VC", "FACULTY"]);
+  assert.deepEqual(roles, ["FACULTY", "FACULTY"]);
   assert.deepEqual(calls, [{ name: "advance_event_approval", args: { p_proposal_id: proposalId, p_action: "save_details", p_budget: 2400.75, p_requirements: "Laptops" } }]);
   assert.ok(revalidated.includes(`/faculty/events/${proposalId}`));
-  assert.ok(revalidated.includes("/vc/dashboard"));
+  assert.ok(revalidated.includes("/faculty/dashboard"));
 });
 
 test("a failed VC decision removes the temporary upload", async () => {
   const eventId = "00000000-0000-4000-8000-000000000030";
   const uploads = [];
   const removed = [];
+  const filters = [];
   let lockPath;
-  const query = { select: () => query, eq: () => query, maybeSingle: async () => ({ data: { id: eventId, status: "AWAITING_VC_DOCUMENT", vc_decision: "APPROVED", vc_recorded_at: null, letter_printed_at: "2026-11-21T12:00:00Z" }, error: null }) };
+  const query = { select: () => query, eq: (...args) => { filters.push(args); return query; }, maybeSingle: async () => ({ data: { id: eventId, status: "AWAITING_VC_DOCUMENT", vc_decision: "APPROVED", vc_recorded_at: null, letter_printed_at: "2026-11-21T12:00:00Z" }, error: null }) };
   const client = {
     from: () => query,
     storage: { from: () => ({ upload: async (key) => { uploads.push(key); return { error: null }; }, remove: async (keys) => removed.push(...keys) }) },
-    rpc: async (_name, args) => { lockPath = args.p_document_path; return { error: { code: "22023" } }; },
+    rpc: async (name, args) => {
+      assert.equal(name, "record_faculty_vc_decision");
+      lockPath = args.p_document_path;
+      return { error: { code: "22023" } };
+    },
   };
-  const { recordDecision } = loadSource("src/app/(dashboard)/vc/events/[id]/decision/actions.ts", {
+  const { recordDecision } = loadSource("src/app/(dashboard)/faculty/events/[id]/decision/actions.ts", {
     "next/navigation": { redirect: () => assert.fail("A failed transition cannot redirect") },
     "@/lib/validation/vc-evidence": loadSource("src/lib/validation/vc-evidence.ts"),
     "next/cache": { revalidatePath: () => assert.fail("A failed transition cannot revalidate approval pages") },
-    "@/lib/auth/guard": { requireRole: async (allowed) => assert.deepEqual(allowed, ["VC"]) },
+    "@/lib/auth/guard": { requireRole: async (allowed) => {
+      assert.deepEqual(allowed, ["FACULTY"]);
+      return { id: facultyId };
+    } },
     "@/lib/supabase/server": { createClient: async () => client },
   });
   const forged = new File(["not a PDF"], "approval.pdf", { type: "application/pdf" });
@@ -173,9 +250,49 @@ test("a failed VC decision removes the temporary upload", async () => {
 
   const pdf = new File(["%PDF-1.4\n"], "approval.pdf", { type: "application/pdf" });
   assert.match(await recordDecision(proposalId, approvalForm("decision", { decision: "APPROVED", document: pdf })), /no longer available/);
+  assert.deepEqual(filters, [["proposal_id", proposalId], ["created_by", facultyId]]);
   assert.equal(uploads.length, 1);
   assert.match(lockPath, new RegExp(`^${eventId}/[0-9a-f-]+\\.pdf$`));
   assert.deepEqual(removed, uploads);
+});
+
+test("locking a VC-approved event opens committees and refreshes the Dean’s copy", async () => {
+  const eventId = "00000000-0000-4000-8000-000000000030";
+  const refreshed = [];
+  const uploads = [];
+  const query = {
+    select: () => query, eq: () => query,
+    maybeSingle: async () => ({
+      data: { id: eventId, status: "AWAITING_VC_DOCUMENT", vc_recorded_at: null, letter_printed_at: "2026-11-21T12:00:00Z" },
+      error: null,
+    }),
+  };
+  const { recordDecision } = loadSource("src/app/(dashboard)/faculty/events/[id]/decision/actions.ts", {
+    "next/navigation": { redirect: (href) => { throw new Error(href); } },
+    "next/cache": { revalidatePath: (...args) => refreshed.push(args) },
+    "@/lib/auth/guard": { requireRole: async () => ({ id: facultyId }) },
+    "@/lib/validation/vc-evidence": loadSource("src/lib/validation/vc-evidence.ts"),
+    "@/lib/supabase/server": { createClient: async () => ({
+      from: () => query,
+      storage: { from: () => ({ upload: async (path) => { uploads.push(path); return { error: null }; } }) },
+      rpc: async (name, args) => {
+        assert.equal(name, "record_faculty_vc_decision");
+        assert.equal(args.p_document_path, args.p_decision === "APPROVED" ? uploads[0] : null);
+        return { error: null };
+      },
+    }) },
+  });
+
+  const pdf = new File(["%PDF-1.4\n"], "approval.pdf", { type: "application/pdf" });
+  await assert.rejects(recordDecision(proposalId, approvalForm("decision", { decision: "APPROVED", document: pdf })),
+    { message: `/faculty/committees/${eventId}?locked=1` });
+  assert.ok(refreshed.some(([path, type]) => path === "/dean" && type === "layout"));
+  assert.ok(refreshed.some(([path]) => path === "/faculty/committees"));
+
+  refreshed.length = 0;
+  await assert.rejects(recordDecision(proposalId, approvalForm("decision", { decision: "REJECTED", reason: "Schedule conflict" })),
+    { message: `/faculty/events/${proposalId}/decision` });
+  assert.equal(refreshed.some(([path]) => path.startsWith("/faculty/committees")), false);
 });
 
 const values = {

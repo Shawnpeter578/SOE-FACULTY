@@ -111,7 +111,7 @@ function DeanNotifications({ activity }: { activity: DeanActivity[] }) {
               <li key={item.id}>
                 <Link href={item.href} onClick={() => setOpen(false)} className="block rounded-lg p-2 hover:bg-brand-canvas">
                   <span className="block break-words text-sm font-semibold text-text-primary">{item.title}</span>
-                  <span className="mt-1 block text-xs text-text-secondary">{getStatusLabel(item.status)} · {formatApprovalTime(item.at)}</span>
+                  <span className="mt-1 block text-xs text-text-secondary">{item.status === "OFFICIALLY_APPROVED" ? "VC-signed letter received" : getStatusLabel(item.status)} · {formatApprovalTime(item.at)}</span>
                 </Link>
               </li>
             ))}

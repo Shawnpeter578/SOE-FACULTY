@@ -48,7 +48,10 @@ export default async function CoFacultyWorkspace({ searchParams }: { searchParam
               <p className="mt-1 text-sm text-text-secondary">{isDashboard ? "See the events you help coordinate and track your assignments." : "Review your responsibilities and update progress for each event."}</p>
             </div>
           </div>
-          {isDashboard && <Link href={assignmentsHref} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-brand-primary px-4 text-sm font-semibold text-white hover:bg-brand-hover">All assignments <ArrowRight size={16} aria-hidden="true" /></Link>}
+          {isDashboard && <div className="flex flex-wrap gap-2">
+            <Link href="/faculty/co-faculty/committees" className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-brand-primary px-4 text-sm font-semibold text-white hover:bg-brand-hover">My committees <ArrowRight size={16} aria-hidden="true" /></Link>
+            <Link href={assignmentsHref} className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-brand-border px-4 text-sm font-semibold text-brand-primary hover:bg-brand-selected">All assignments</Link>
+          </div>}
         </header>
 
         {message ? <p role="status" className="rounded-2xl border border-brand-border bg-white p-5 text-sm text-text-secondary">{message}</p> : <>

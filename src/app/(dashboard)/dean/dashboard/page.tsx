@@ -1,5 +1,4 @@
 import { createClient } from "@/lib/supabase/server";
-import RouteRefresh from "@/components/route-refresh";
 import { getDeanAccount } from "../account";
 import { getDeanRecentActivity } from "../recent-activity";
 import DeanDashboard, { type DashboardItem } from "./dashboard-client";
@@ -66,15 +65,12 @@ export default async function DeanDashboardPage() {
   }));
 
   return (
-    <>
-      <RouteRefresh intervalMs={10000} />
-      <DeanDashboard
-        deanId={dean.id}
-        deanName={dean.details.fullName}
-        proposals={proposalRows}
-        events={eventRows}
-        activities={activities}
-      />
-    </>
+    <DeanDashboard
+      deanId={dean.id}
+      deanName={dean.details.fullName}
+      proposals={proposalRows}
+      events={eventRows}
+      activities={activities}
+    />
   );
 }

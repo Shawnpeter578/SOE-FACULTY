@@ -18,13 +18,15 @@ export default function AppLayout({ children, facultyName, refreshIntervalMs }: 
   const initials = getFacultyInitials(facultyName);
   const isCoFaculty = pathname === '/faculty/co-faculty' || pathname.startsWith('/faculty/co-faculty/');
   const isCurrent = (href: string) => pathname === href || (href !== '/faculty/co-faculty' && pathname.startsWith(`${href}/`));
-  const isEventsPage = /^\/faculty\/events(?:\/[^/]+)?$/.test(pathname);
+  const isEventsPage = /^\/faculty\/events(?:\/|$)/.test(pathname);
+  const isCommitteesPage = /^\/faculty\/(?:co-faculty\/)?committees(?:\/|$)/.test(pathname);
   const isDashboard = pathname === '/faculty/dashboard';
 
   // Update desktopNav paths
   const coordinatorNav = [
     { href: '/faculty/co-faculty', label: 'Dashboard', icon: LayoutGrid },
     { href: '/faculty/co-faculty/assignments', label: 'Assignments', icon: ClipboardList },
+    { href: '/faculty/co-faculty/committees', label: 'My Committees', icon: Users },
   ];
   const desktopNav = isCoFaculty ? coordinatorNav : [
     { href: '/faculty/dashboard', label: 'Dashboard', icon: LayoutGrid },
@@ -40,6 +42,7 @@ export default function AppLayout({ children, facultyName, refreshIntervalMs }: 
   const mobileNav = isCoFaculty ? [...coordinatorNav, { href: '/faculty/profile', label: 'Profile', icon: User }] : [
     { href: '/faculty/dashboard', label: 'Home', icon: LayoutGrid },
     { href: '/faculty/events', label: 'Events', icon: Calendar },
+    { href: '/faculty/committees', label: 'Committees', icon: Users },
     { href: '/faculty/messages', label: 'Chat', icon: MessageSquare },
     { href: '/faculty/finance', label: 'Finance', icon: Wallet },
     { href: '/faculty/profile', label: 'Profile', icon: User },
@@ -123,7 +126,7 @@ export default function AppLayout({ children, facultyName, refreshIntervalMs }: 
           initials={initials}
           searchPath={isCoFaculty ? '/faculty/co-faculty/assignments' : '/faculty/events'}
           searchLabel={isCoFaculty ? 'Search assignments' : 'Search my events'}
-          showSearch={!isEventsPage}
+          showSearch={!isEventsPage && !isCommitteesPage}
           showOnMobile={isDashboard || isCoFaculty}
           notifications={<FacultyNotificationButton />}
           profileControl={<FacultyWorkspaceSwitch key={pathname} name={facultyName} initials={initials} coFaculty={isCoFaculty} />}
@@ -135,7 +138,7 @@ export default function AppLayout({ children, facultyName, refreshIntervalMs }: 
         </div>
 
         {/* Global Mobile FAB */}
-        {!isCoFaculty && !isEventsPage && pathname !== '/faculty/profile' && <div className="fixed bottom-24 right-4 lg:hidden flex items-end gap-3 z-40 pointer-events-none">
+        {!isCoFaculty && !isEventsPage && !isCommitteesPage && pathname !== '/faculty/profile' && <div className="fixed bottom-24 right-4 lg:hidden flex items-end gap-3 z-40 pointer-events-none">
           {/* We keep pointer-events-none on the container so we can click through it, but enable it on the button */}
           <Link href="/faculty/request" aria-label="New event request" className="w-14 h-14 bg-[#1A2234] text-white rounded-full flex items-center justify-center shadow-lg hover:bg-[#111827] active:scale-95 transition-all flex-shrink-0 pointer-events-auto">
             <Plus className="w-6 h-6" />
@@ -143,7 +146,7 @@ export default function AppLayout({ children, facultyName, refreshIntervalMs }: 
         </div>}
 
         {/* Global Mobile Bottom Navigation */}
-        <nav className="lg:hidden fixed bottom-0 w-full bg-white border-t border-slate-200 flex justify-between px-6 py-3 pb-safe z-50">
+        <nav className="lg:hidden fixed bottom-0 w-full bg-white border-t border-slate-200 flex justify-between px-3 py-3 pb-safe z-50 sm:px-6">
           {mobileNav.map((item) => {
             const active = isCurrent(item.href);
             return (

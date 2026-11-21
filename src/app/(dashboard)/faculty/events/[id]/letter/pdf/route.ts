@@ -3,7 +3,7 @@ import { renderRequestLetterPdf } from "@/lib/request-letter-pdf";
 
 export async function GET(_request: Request, { params }: RouteContext<"/faculty/events/[id]/letter/pdf">) {
   const { id } = await params;
-  const { event, letter, ready } = await loadRequestLetter(id, ["FACULTY", "VC"]);
+  const { event, letter, ready } = await loadRequestLetter(id);
   if (!ready && !event.letter_printed_at) return new Response("The final request letter is not ready.", { status: 404 });
 
   const pdf = await renderRequestLetterPdf(letter, await requestLetterUrl(id));

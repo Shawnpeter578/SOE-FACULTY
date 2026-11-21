@@ -47,7 +47,7 @@ export type LetterEventDetails = {
 
 export const EVENT_DOCUMENT_BUCKET = "event-documents";
 
-export function vcApprovalFileName(event: ApprovalEvent) {
+export function vcApprovalFileName(event: Pick<ApprovalEvent, "vc_approval_document_path">) {
   const extension = event.vc_approval_document_path?.split(".").pop() ?? "pdf";
   return `VC approval.${extension}`;
 }

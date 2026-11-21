@@ -13,8 +13,8 @@ import RequestLetterSteps from "./request-letter-steps";
 import SignaturePreview from "./signature-mark";
 
 type LetterProps = RequestLetter & {
-  role: string; back: string; qr?: string; detailsAt?: string | null; printedAt?: string | null;
-  status: string; vcDecision?: string | null; ready: boolean; canUpdate: boolean; signingAvailable: boolean; textEditingAvailable: boolean;
+  back: string; qr?: string; detailsAt?: string | null; printedAt?: string | null;
+  status: string; ready: boolean; canUpdate: boolean; signingAvailable: boolean; textEditingAvailable: boolean;
   savedSignature?: SavedSignature | null;
 };
 
@@ -23,7 +23,7 @@ const button = "inline-flex min-h-11 items-center justify-center gap-2 rounded-x
 const secondaryButton = "inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-brand-primary px-4 text-sm font-semibold text-brand-primary hover:bg-brand-selected";
 
 export default function LetterPreview(props: LetterProps) {
-  const { id, role, back, title, faculty, dean, ready, printedAt, canUpdate } = props;
+  const { id, back, title, faculty, dean, ready, printedAt, canUpdate } = props;
   const [zoom, setZoom] = useState(85);
   const paper = useRef<HTMLElement>(null);
   const [draft, setDraft] = useState<{ body: string; closing: string; detailsAt?: string | null } | null>(null);
@@ -60,8 +60,8 @@ export default function LetterPreview(props: LetterProps) {
         <Link href={back} className="inline-flex items-center gap-2 text-sm font-medium text-text-secondary hover:text-brand-primary"><ArrowLeft size={15} aria-hidden="true" /> Back to request</Link>
         <div className="mt-2.5 flex flex-wrap items-start justify-between gap-2">
           <div className="min-w-0">
-            <h1 className="text-2xl font-bold tracking-tight text-brand-primary sm:text-3xl">{role !== "FACULTY" ? "Request Letter" : canPrint ? "Print Request Letter" : "Generate Request Letter"}</h1>
-            <p className="mt-1 text-sm text-text-secondary">{role !== "FACULTY" ? "The faculty member prepares and prints this letter after dean approval." : final ? "View or reprint the letter kept with the VC decision." : printedAt ? "The letter has been printed for VC review." : canPrint ? "Print a copy to submit to the Vice-Chancellor." : "Review the letter and e-sign it before printing."}</p>
+            <h1 className="text-2xl font-bold tracking-tight text-brand-primary sm:text-3xl">{canPrint ? "Print Request Letter" : "Generate Request Letter"}</h1>
+            <p className="mt-1 text-sm text-text-secondary">{final ? "View or reprint the letter kept with the VC decision." : printedAt ? "The letter has been printed for VC review." : canPrint ? "Print a copy to submit to the Vice-Chancellor." : "Review the letter and e-sign it before printing."}</p>
           </div>
           <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold ${statusLabel === "Closed" ? "bg-red-100 text-red-800" : statusLabel === "Locked" ? "bg-brand-selected text-brand-primary" : printedAt ? "bg-warning-bg text-amber-800" : "bg-success-bg text-emerald-800"}`}>{printedAt && !final ? <Clock3 size={14} aria-hidden="true" /> : <Check size={14} aria-hidden="true" />} {statusLabel}</span>
         </div>
@@ -137,7 +137,7 @@ export default function LetterPreview(props: LetterProps) {
           </section>
           <section className={`${panel} ${printedAt ? "bg-success-bg!" : ""}`}>
             <h2 className="font-bold text-brand-primary">{printedAt ? "Letter printed" : canPrint ? "Ready to print" : "Letter checklist"}</h2>
-            {printedAt ? <p className="mt-1 text-sm text-text-secondary">{final ? "The final letter is available for reprint and download." : "The faculty member can see the print update in EventDesk. The VC decision is pending."}</p> :
+            {printedAt ? <p className="mt-1 text-sm text-text-secondary">{final ? "The final letter is available for reprint and download." : "Record the outcome here when you hear back from the Vice-Chancellor."}</p> :
             <ul className="mt-3 space-y-3 text-sm">
               {canPrint ? <>
                 <ChecklistRow done title="Letter ID and QR code added">Use A4 portrait and actual size when printing.</ChecklistRow>
@@ -175,11 +175,11 @@ export default function LetterPreview(props: LetterProps) {
               <button type="submit" disabled={pending} className={`${button} w-full`}>{pending ? "Recording signature…" : props.createdAt ? "Apply my e-signature" : "Generate and e-sign"}</button>
             </form>
           )}
-          {canPrint && role === "FACULTY" && <>
+          {canPrint && <>
             <button type="button" onClick={() => window.print()} className={`${button} w-full`}><Printer size={17} aria-hidden="true" />Print letter</button>
             <a href={`/faculty/events/${id}/letter/pdf`} download className={`${secondaryButton} w-full`}><Download size={17} aria-hidden="true" />Download PDF</a>
           </>}
-          {canUpdate && role === "FACULTY" && canPrint && !printedAt && (
+          {canUpdate && canPrint && !printedAt && (
             <form action={submit} className={`${panel} space-y-3`}>
               <input type="hidden" name="action" value="confirm_printed" />
               <input type="hidden" name="detailsAt" value={props.detailsAt ?? ""} />
@@ -187,9 +187,8 @@ export default function LetterPreview(props: LetterProps) {
               <button type="submit" disabled={pending} className={`${button} w-full`}>Confirm printed</button>
             </form>
           )}
-          {printedAt && role === "VC" && <Link href={`/vc/events/${id}/decision`} className={`${button} w-full`}>{final ? "View VC decision" : "Record VC decision"}</Link>}
-          {printedAt && role === "FACULTY" && <p className="text-sm text-text-secondary">{props.vcDecision === "APPROVED" ? "VC approved" : props.vcDecision === "REJECTED" ? "VC declined" : "VC decision pending"}</p>}
-          {canPrint && <Link href={role === "FACULTY" ? "/faculty/dashboard" : "/vc/dashboard"} className="block rounded-lg py-2 text-center text-sm font-semibold text-brand-primary hover:bg-brand-selected">Back to dashboard</Link>}
+          {printedAt && <Link href={`/faculty/events/${id}/decision`} className={`${button} w-full`}>{final ? "View VC decision" : "Record VC decision"}</Link>}
+          {canPrint && <Link href="/faculty/dashboard" className="block rounded-lg py-2 text-center text-sm font-semibold text-brand-primary hover:bg-brand-selected">Back to dashboard</Link>}
           {state.message && <p role={state.success ? "status" : "alert"} className={`text-sm ${state.success ? "text-emerald-800" : "text-red-700"}`}>{state.message}</p>}
         </aside>
       </div>

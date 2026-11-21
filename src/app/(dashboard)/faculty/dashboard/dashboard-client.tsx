@@ -48,6 +48,7 @@ interface DashboardEvent {
   start_date: string;
   end_date: string;
   status: string;
+  letter_printed_at: string | null;
 }
 
 interface DashboardProps {
@@ -69,6 +70,7 @@ interface EventItem {
   location: string;
   status: string;
   stages: Stage[];
+  canRecordDecision?: boolean;
 }
 
 const dashboardCard = `${facultyCardClass} min-w-0 p-4 sm:p-6`;
@@ -145,6 +147,12 @@ function EventCard({ event }: { event: EventItem }) {
       </Link>
 
       {!declined && <PipelineBar stages={event.stages} />}
+
+      {event.canRecordDecision && (
+        <Link href={`${detailHref}/decision`} className="mt-3 inline-flex min-h-10 items-center gap-2 rounded-xl bg-brand-primary px-3.5 py-2 text-sm font-semibold text-white hover:bg-brand-hover">
+          Record VC decision <ArrowRight size={15} aria-hidden="true" />
+        </Link>
+      )}
 
       {event.status === "CHANGES_REQUESTED" && (
         <Link
@@ -240,6 +248,7 @@ export default function DashboardClient({
         location: event.venue,
         status: event.status,
         stages: getEventStages(event.status),
+        canRecordDecision: Boolean(event.letter_printed_at && event.status === "AWAITING_VC_DOCUMENT"),
       };
     });
 

@@ -27,6 +27,7 @@ export default function EventDetail({ proposal, event, facultyName, attachments,
   const closed = deanRejected || vcRejected;
   const approved = event?.status === "OFFICIALLY_APPROVED";
   const deanApproved = proposal.status === "APPROVED_BY_DEAN";
+  const showDecision = deanApproved && event?.letter_printed_at && (approved || vcRejected || event.status === "AWAITING_VC_DOCUMENT");
   const changesRequested = proposal.status === "CHANGES_REQUESTED";
   const action = getFacultyApprovalAction(event);
   const status = closed ? (vcRejected ? "VC disapproved" : "Dean disapproved")
@@ -81,15 +82,19 @@ export default function EventDetail({ proposal, event, facultyName, attachments,
                       : action === "sign" ? "Apply your e-signature to prepare the letter for printing."
                       : action === "details" ? "Next, record your budget and event requirements."
                       : action === "print" ? "Next, print the request letter and confirm that it was printed."
-                      : event?.vc_decision === "APPROVED" ? "Waiting for the VC to upload the signed approval."
-                      : event?.letter_printed_at ? "Your request is awaiting the Vice-Chancellor’s decision."
+                      : event?.vc_decision === "APPROVED" ? "Upload the VC-signed letter to lock the event."
+                      : event?.letter_printed_at ? "Record the Vice-Chancellor’s decision when you receive it."
                       : "The letter workflow will appear when it is available."}
                   </p>
                 </div>
               </div>
-              {deanApproved && event && <Link href={`/faculty/events/${proposal.id}/letter`} className="rounded-xl bg-brand-primary px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-hover">{action === "print" ? "Print request letter" : event.letter_generated_at ? "Open request letter" : "Generate request letter"}</Link>}
-              {changesRequested && <Link href={`/faculty/events/${proposal.id}/edit`} className="rounded-xl bg-brand-primary px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-hover">Edit and resubmit</Link>}
-              {approved && approvalUrl && <a href={approvalUrl} className="rounded-xl bg-brand-primary px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-hover">Download signed approval</a>}
+              <div className="flex flex-wrap gap-2">
+                {approved && event.vc_approval_document_path && <Link href={`/faculty/committees/${event.id}`} className="rounded-xl bg-brand-primary px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-hover">Manage committees</Link>}
+                {showDecision && <Link href={`/faculty/events/${proposal.id}/decision`} className={`rounded-xl px-4 py-2.5 text-sm font-semibold ${approved && event.vc_approval_document_path ? "border border-brand-primary text-brand-primary hover:bg-brand-selected" : "bg-brand-primary text-white hover:bg-brand-hover"}`}>{approved || vcRejected ? "View VC decision" : "Record VC decision"}</Link>}
+                {deanApproved && event && <Link href={`/faculty/events/${proposal.id}/letter`} className={`rounded-xl px-4 py-2.5 text-sm font-semibold ${showDecision ? "border border-brand-primary text-brand-primary hover:bg-brand-selected" : "bg-brand-primary text-white hover:bg-brand-hover"}`}>{action === "print" ? "Print request letter" : event.letter_generated_at ? "Open request letter" : "Generate request letter"}</Link>}
+                {changesRequested && <Link href={`/faculty/events/${proposal.id}/edit`} className="rounded-xl bg-brand-primary px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-hover">Edit and resubmit</Link>}
+                {approved && approvalUrl && <a href={approvalUrl} className="rounded-xl border border-brand-primary px-4 py-2.5 text-sm font-semibold text-brand-primary hover:bg-brand-selected">Download signed approval</a>}
+              </div>
             </div>
             {closed && closureNote && <blockquote className="mt-3 rounded-xl bg-white px-4 py-3 text-sm leading-relaxed text-text-primary"><p className="whitespace-pre-wrap break-words">{closureNote}</p><footer className="mt-1 text-xs text-text-secondary">— {vcRejected ? "Vice-Chancellor" : "Dean"}</footer></blockquote>}
           </section>
