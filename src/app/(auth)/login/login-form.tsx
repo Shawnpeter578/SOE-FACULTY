@@ -7,11 +7,11 @@ import { Calendar, Check, Eye, EyeOff, X } from "lucide-react";
 
 export default function LoginPage({ demoLoginEnabled }: { demoLoginEnabled: boolean }) {
   const [showPassword, setShowPassword] = useState(false);
-  const [activeRole, setActiveRole] = useState("Student");
+  const [activeRole, setActiveRole] = useState("Faculty");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
-  const roles = ["Student", "Faculty", "Dean"];
+  const roles = ["Faculty", "Dean"];
 
   const initialState: LoginState = {
     error: null,
@@ -22,10 +22,10 @@ export default function LoginPage({ demoLoginEnabled }: { demoLoginEnabled: bool
     initialState
   );
 
-  function fillDemoAccount(role: "Student" | "Dean") {
+  function fillDemoAccount(role: "Dean") {
     setActiveRole(role);
-    setEmail(role === "Dean" ? "dean.demo@eventdesk.test" : "student.demo@eventdesk.test");
-    setPassword(role === "Dean" ? "DeanDemo2026!" : "StudentDemo2026!");
+    setEmail("dean.demo@eventdesk.test");
+    setPassword("DeanDemo2026!");
   }
 
   return (
@@ -256,14 +256,10 @@ export default function LoginPage({ demoLoginEnabled }: { demoLoginEnabled: bool
                   Fill Dean demo
                   <span className="mt-1 block truncate text-[10px] font-normal text-slate-500">dean.demo@eventdesk.test</span>
                 </button>
-                <button type="button" onClick={() => fillDemoAccount("Student")} className="rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-left text-xs font-semibold text-[#182855] transition hover:border-[#182855]/40 hover:bg-slate-50">
-                  Fill Student demo
-                  <span className="mt-1 block truncate text-[10px] font-normal text-slate-500">student.demo@eventdesk.test</span>
-                </button>
+
               </div>
               <p className="mt-3 text-[10px] leading-5 text-slate-500">
-                Dean password: <span className="font-medium text-slate-700">DeanDemo2026!</span><br />
-                Student password: <span className="font-medium text-slate-700">StudentDemo2026!</span>
+                Dean password: <span className="font-medium text-slate-700">DeanDemo2026!</span>
               </p>
             </section>
           )}

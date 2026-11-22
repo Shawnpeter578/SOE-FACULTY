@@ -27,8 +27,21 @@ function loadSource(relativePath, mocks = {}) {
 
 const { eventRequestSchema } = loadSource("src/lib/validation/event-proposal.ts");
 const { validateAttachments, MAX_ATTACHMENT_BYTES } = loadSource("src/lib/validation/proposal-attachments.ts");
+const { validateCommitteeAttachment, COMMITTEE_FILE_LIMIT } = loadSource("src/lib/validation/committee-attachments.ts");
 const facultyId = "00000000-0000-4000-8000-000000000010";
 const proposalId = "00000000-0000-4000-8000-000000000020";
+
+test("committee uploads accept common documents even when the browser omits the MIME type", async () => {
+  assert.deepEqual(await validateCommitteeAttachment(new File(["item,count\nMeals,40"], "menu.CSV")), {
+    extension: "csv", contentType: "text/csv",
+  });
+  assert.deepEqual(await validateCommitteeAttachment(new File([Uint8Array.of(0x50, 0x4b, 0x03, 0x04)], "Slides.pptx", { type: "application/octet-stream" })), {
+    extension: "pptx", contentType: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  });
+  assert.equal(await validateCommitteeAttachment(new File(["just text"], "fake.docx")), null);
+  assert.equal(await validateCommitteeAttachment(new File(["sample"], "sample.exe")), null);
+  assert.equal(await validateCommitteeAttachment(new File([new Uint8Array(COMMITTEE_FILE_LIMIT + 1)], "large.txt")), null);
+});
 
 test("the approving dean gets a recent activity link for the confirmed signed letter", async () => {
   const deanId = "00000000-0000-4000-8000-000000000012";
@@ -256,7 +269,7 @@ test("a failed VC decision removes the temporary upload", async () => {
   assert.deepEqual(removed, uploads);
 });
 
-test("locking a VC-approved event opens committees and refreshes the Dean’s copy", async () => {
+test("locking a VC-approved event opens the confirmation and refreshes committees and the Dean’s copy", async () => {
   const eventId = "00000000-0000-4000-8000-000000000030";
   const refreshed = [];
   const uploads = [];
@@ -285,7 +298,7 @@ test("locking a VC-approved event opens committees and refreshes the Dean’s co
 
   const pdf = new File(["%PDF-1.4\n"], "approval.pdf", { type: "application/pdf" });
   await assert.rejects(recordDecision(proposalId, approvalForm("decision", { decision: "APPROVED", document: pdf })),
-    { message: `/faculty/committees/${eventId}?locked=1` });
+    { message: `/faculty/events/${proposalId}/decision?confirmed=1` });
   assert.ok(refreshed.some(([path, type]) => path === "/dean" && type === "layout"));
   assert.ok(refreshed.some(([path]) => path === "/faculty/committees"));
 

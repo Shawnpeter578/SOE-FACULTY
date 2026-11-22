@@ -1,11 +1,11 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { Check, UserRound } from "lucide-react";
+import { profileInputClass, ProfileFormFooter } from "@/components/profile-form-controls";
 import { saveFacultyProfile, type ProfileActionState } from "./actions";
 import { profileFields, type FacultyProfileFields } from "./profile-fields";
 
-export default function FacultyProfileForm({
+export default function ProfileForm({
   values,
   canEdit,
   saveAction = saveFacultyProfile,
@@ -20,19 +20,16 @@ export default function FacultyProfileForm({
     if (result.success) setDraft({});
     return result;
   }, { success: false, message: "" });
+  const dirty = profileFields.some(({ name }) => draft[name] !== undefined && draft[name] !== values[name]);
 
   return (
-    <section className="min-w-0 rounded-3xl border border-slate-200/80 bg-white p-5 shadow-[0_2px_15px_rgba(15,23,42,0.03)] sm:p-7">
-      <div className="flex items-center gap-3">
-        <span className="flex size-10 items-center justify-center rounded-xl bg-slate-50 text-[#1E2B58]"><UserRound size={19} aria-hidden="true" /></span>
-        <h2 className="text-xl font-bold tracking-tight text-slate-900">Personal details</h2>
-      </div>
-
-      <form action={formAction} className="mt-6" aria-busy={pending}>
-        <fieldset disabled={pending} className="grid min-w-0 gap-4 sm:grid-cols-2 sm:gap-5">
+    <section>
+      <h3 className="text-lg font-bold tracking-tight text-brand-primary">Personal details</h3>
+      <form action={formAction} className="mt-4" aria-busy={pending}>
+        <fieldset disabled={pending} className="grid min-w-0 gap-4 sm:grid-cols-2">
           {profileFields.map((field) => (
-            <label key={field.name} className="block min-w-0">
-              <span className="mb-1.5 block text-sm font-semibold text-slate-700">{field.label}</span>
+            <label key={field.name} className={`block min-w-0 ${field.name === "fullName" ? "sm:col-span-2" : ""}`}>
+              <span className="mb-1.5 block text-sm font-semibold text-text-primary">{field.label}</span>
               <input
                 name={field.name}
                 value={draft[field.name] ?? values[field.name]}
@@ -45,24 +42,14 @@ export default function FacultyProfileForm({
                 required={field.name === "fullName"}
                 maxLength={field.maxLength}
                 readOnly={!canEdit}
-                className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-base text-slate-900 outline-none read-only:bg-slate-50 focus:border-[#1E2B58] focus:ring-1 focus:ring-[#1E2B58] disabled:opacity-60"
+                className={profileInputClass}
               />
             </label>
           ))}
         </fieldset>
 
-        <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-5">
-          {canEdit ? (
-            <>
-              <p role={state.success ? "status" : "alert"} className={`flex items-center gap-1.5 text-sm ${state.success ? "text-emerald-800" : "text-red-700"}`}>
-                {state.success && <Check size={16} aria-hidden="true" />}{state.message}
-              </p>
-              <button type="submit" disabled={pending} className="ml-auto inline-flex min-h-11 items-center rounded-xl bg-[#1E2B58] px-4 text-sm font-semibold text-white transition-colors hover:bg-[#162044] disabled:cursor-wait disabled:opacity-70">
-                {pending ? "Saving…" : "Save changes"}
-              </button>
-            </>
-          ) : <p role="status" className="text-sm text-slate-600">Profile editing becomes available after the faculty profile database migration is applied.</p>}
-        </div>
+        {canEdit ? <ProfileFormFooter state={state} dirty={dirty} pending={pending} onDiscard={() => setDraft({})} saveLabel="Save changes" />
+          : <p role="status" className="mt-4 text-sm text-text-secondary">Profile editing becomes available after the faculty profile database migration is applied.</p>}
       </form>
     </section>
   );

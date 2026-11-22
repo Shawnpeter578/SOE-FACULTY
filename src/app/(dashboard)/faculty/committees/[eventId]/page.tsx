@@ -5,15 +5,15 @@ import { z } from "zod";
 import { requireRole } from "@/lib/auth/guard";
 import { formatEventDateRange } from "@/lib/event-approval";
 import { approvedCommitteeEvents, committeeLoadError, loadEventCommittees } from "@/lib/event-committees-server";
-import type { CommitteeEvent } from "@/lib/event-committees";
+import { committeeCoordinators, type CommitteeEvent } from "@/lib/event-committees";
 import { createClient } from "@/lib/supabase/server";
 import AppLayout from "../../components/AppLayout";
-import { facultyCardClass, facultyPageClass } from "../../components/workspace-styles";
-import { CreateCommitteeForm, StartCommitteesDialog } from "../forms";
+import { CommitteeHeader, committeePage, committeePanel } from "../workspace-ui";
+import { CreateCommitteeForm } from "../forms";
 
-export default async function EventCommitteesPage({ params, searchParams }: PageProps<"/faculty/committees/[eventId]">) {
+export default async function EventCommitteesPage({ params }: PageProps<"/faculty/committees/[eventId]">) {
   const profile = await requireRole(["FACULTY"]);
-  const [{ eventId }, query] = await Promise.all([params, searchParams]);
+  const { eventId } = await params;
   if (!z.uuid().safeParse(eventId).success) notFound();
   const supabase = await createClient();
   const { data: event, error } = await approvedCommitteeEvents(supabase, profile.id).eq("id", eventId).maybeSingle<CommitteeEvent>();
@@ -23,36 +23,33 @@ export default async function EventCommitteesPage({ params, searchParams }: Page
 
   return (
     <AppLayout facultyName={profile.full_name}>
-      <div className={facultyPageClass}>
-        {query.locked === "1" && <StartCommitteesDialog eventId={event.id} />}
-        <header>
+      <div className={committeePage}>
           <Link href="/faculty/committees" className="inline-flex items-center gap-2 text-sm font-semibold text-brand-primary hover:underline"><ArrowLeft size={16} aria-hidden="true" />All committees</Link>
-          <div className="mt-3 flex flex-wrap items-center gap-3">
-            <h1 className="break-words text-3xl font-bold tracking-tight text-brand-primary">{event.title}</h1>
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-success-bg px-2.5 py-1 text-xs font-semibold text-emerald-800"><LockKeyhole size={13} aria-hidden="true" />Event locked</span>
+        <CommitteeHeader title={event.title} context={`${formatEventDateRange(event.start_date, event.end_date)}${event.venue ? ` · ${event.venue}` : ""}`}>
+          <div className="flex flex-wrap items-center gap-3 text-sm font-semibold text-brand-primary">
+            <Link href={`/faculty/events/${event.proposal_id}`} className="inline-flex items-center gap-1.5 hover:underline"><LockKeyhole size={15} aria-hidden="true" />View event details</Link>
+            <Link href={`/faculty/reports?event=${event.id}`} className="rounded-lg border border-brand-border bg-white px-3 py-2 hover:bg-brand-selected">Event files</Link>
           </div>
-          <p className="mt-2 text-sm text-text-secondary">{formatEventDateRange(event.start_date, event.end_date)}{event.venue && ` · ${event.venue}`}</p>
-          <Link href={`/faculty/events/${event.proposal_id}`} className="mt-2 inline-block text-sm font-semibold text-brand-primary hover:underline">View event details</Link>
-        </header>
-        {committeeError ? <p role="status" className={`${facultyCardClass} p-5 text-sm text-text-secondary`}>{committeeLoadError(committeeError.code)}</p> :
+        </CommitteeHeader>
+        {committeeError ? <p role="status" className={`${committeePanel} p-5 text-sm text-text-secondary`}>{committeeLoadError(committeeError.code)}</p> :
           <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)]">
-            <section className={`${facultyCardClass} min-w-0 p-5 sm:p-6`}>
+            <section className={`${committeePanel} p-5 sm:p-6`}>
               <h2 className="mb-4 text-lg font-bold text-brand-primary">New committee</h2>
               <CreateCommitteeForm eventId={event.id} />
             </section>
-            <section className={`${facultyCardClass} min-w-0 p-5 sm:p-6`}>
-              <h2 className="flex items-center gap-2 text-lg font-bold text-brand-primary"><UsersRound size={20} aria-hidden="true" />Event committees</h2>
-              {committees.length ? <ul className="mt-4 space-y-2.5">
+            <section className={`${committeePanel} overflow-hidden`}>
+              <h2 className="flex items-center gap-2 border-b border-brand-border px-5 py-4 text-lg font-bold text-brand-primary"><UsersRound size={20} aria-hidden="true" />Event committees <span className="ml-auto rounded-md bg-brand-selected px-2 py-0.5 text-xs">{committees.length}</span></h2>
+              {committees.length ? <ul className="divide-y divide-brand-border">
                 {committees.map((committee) => <li key={committee.id}>
-                  <Link href={`/faculty/committees/${event.id}/${committee.id}`} className="flex items-center justify-between gap-3 rounded-xl border border-brand-border px-4 py-3 no-underline transition-colors hover:bg-brand-selected hover:no-underline">
+                  <Link href={`/faculty/committees/${event.id}/${committee.id}`} className="flex items-center justify-between gap-3 px-5 py-4 no-underline transition-colors hover:bg-brand-selected hover:no-underline">
                     <div className="min-w-0">
                       <p className="break-words font-semibold text-brand-primary">{committee.name}</p>
-                      <p className="mt-0.5 break-words text-sm text-text-secondary">{committee.coordinator_name ?? "Coordinator unassigned"}</p>
+                      <p className="mt-0.5 break-words text-sm text-text-secondary">{committeeCoordinators(committee).map(({ name }) => name).join(", ") || "No co-faculty assigned"}</p>
                     </div>
-                    <span className="inline-flex shrink-0 items-center gap-1.5 text-sm font-semibold text-brand-primary">{committee.coordinator_name ? "Open" : "Assign"} <ArrowRight size={15} aria-hidden="true" /></span>
+                    <ArrowRight size={17} className="shrink-0 text-brand-primary" aria-hidden="true" />
                   </Link>
                 </li>)}
-              </ul> : <p className="mt-3 rounded-xl bg-brand-canvas p-3 text-sm text-text-secondary">No committees yet. Create one to start assigning coordinators.</p>}
+              </ul> : <p className="p-5 text-sm text-text-secondary">Create a committee to start assigning coordinators.</p>}
             </section>
           </div>}
       </div>

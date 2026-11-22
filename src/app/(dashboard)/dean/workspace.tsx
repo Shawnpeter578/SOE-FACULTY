@@ -15,7 +15,7 @@ const sidebarLinks = [
   { label: "Requests", href: "/dean/proposals", icon: FileText },
   { label: "Approved events", href: "/dean/proposals?status=approved", icon: CircleCheck },
   { label: "Closed events", href: "/dean/proposals?status=closed", icon: CircleX },
-  { label: "Reports", href: "/dean/dashboard?panel=reports", icon: UsersRound },
+  { label: "Reports", href: "/dean/reports", icon: UsersRound },
 ];
 
 function sidebarClass(active: boolean) {
@@ -28,6 +28,7 @@ export default function DeanWorkspace({ name, activity, children }: { name: stri
   const status = params.get("status");
   const panel = params.get("panel");
   const onRequests = pathname.startsWith("/dean/proposals");
+  const onReports = pathname.startsWith("/dean/reports");
   const onProfile = pathname === "/dean/profile";
   const onDashboard = pathname === "/dean/dashboard";
   const initials = workspaceInitials(name, "D");
@@ -43,7 +44,7 @@ export default function DeanWorkspace({ name, activity, children }: { name: stri
           {sidebarLinks.map(({ label, href, icon: Icon }) => {
             const active = href.endsWith("status=approved") ? onRequests && status === "approved"
               : href.endsWith("status=closed") ? onRequests && status === "closed"
-              : href.endsWith("panel=reports") ? onDashboard && panel === "reports"
+              : href === "/dean/reports" ? onReports
               : href.endsWith("/proposals") ? onRequests && status !== "approved" && status !== "closed"
               : onDashboard && !panel;
             return <Link key={href} href={href} aria-current={active ? "page" : undefined} className={sidebarClass(active)}><Icon size={19} aria-hidden="true" />{label}</Link>;
@@ -71,10 +72,11 @@ export default function DeanWorkspace({ name, activity, children }: { name: stri
           notifications={<DeanNotifications key={pathname} activity={activity} />}
         />
         <main className="min-w-0 flex-1 px-4 pb-8 sm:px-6 lg:px-8">{children}</main>
-        <nav aria-label="Mobile dean navigation" className="sticky bottom-0 z-20 grid grid-cols-3 border-t border-brand-border bg-brand-surface px-3 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 lg:hidden">
+        <nav aria-label="Mobile dean navigation" className="sticky bottom-0 z-20 grid grid-cols-4 border-t border-brand-border bg-brand-surface px-3 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 lg:hidden">
           {[
             { href: "/dean/dashboard", label: "Dashboard", active: onDashboard, icon: LayoutDashboard },
             { href: "/dean/proposals", label: "Requests", active: onRequests, icon: FileText },
+            { href: "/dean/reports", label: "Reports", active: onReports, icon: UsersRound },
             { href: "/dean/profile", label: "Profile", active: onProfile, icon: UserRound },
           ].map(({ href, label, active, icon: Icon }) => (
             <Link key={href} href={href} aria-current={active ? "page" : undefined} className={`flex min-h-11 flex-col items-center justify-center gap-1 rounded-lg text-xs font-semibold text-brand-primary hover:bg-brand-border ${active ? "bg-brand-selected" : ""}`}>

@@ -172,7 +172,6 @@ export default function DeanDashboard({
   const [page, setPage] = useState(0);
   const router = useRouter();
   const panel = useSearchParams().get("panel");
-  const showReports = panel === "reports";
   const showHelp = panel === "help";
 
   function closePanel() {
@@ -352,32 +351,21 @@ export default function DeanDashboard({
         </div>
       </div>
 
-      {(showReports || showHelp) && (
+      {showHelp && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/30 p-4" onMouseDown={(event) => { if (event.target === event.currentTarget) closePanel(); }}>
           <section role="dialog" aria-modal="true" aria-labelledby="dashboard-dialog-title" className="w-full max-w-lg rounded-3xl border border-slate-100 bg-white p-6 shadow-2xl">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <h2 id="dashboard-dialog-title" className="text-xl font-bold tracking-tight text-slate-900">{showReports ? "Dean reports" : "Dashboard help"}</h2>
-                <p className="mt-1 text-sm text-slate-500">{showReports ? "Current proposal and event overview." : "Quick guidance for your workspace."}</p>
+                <h2 id="dashboard-dialog-title" className="text-xl font-bold tracking-tight text-slate-900">Dashboard help</h2>
+                <p className="mt-1 text-sm text-slate-500">Quick guidance for your workspace.</p>
               </div>
               <button type="button" onClick={closePanel} aria-label="Close" className="rounded-lg p-1.5 text-[#1E2B58] hover:bg-slate-100"><X size={16} /></button>
             </div>
-            {showReports ? (
-              <div className="mt-6 grid grid-cols-2 gap-3">
-                {(Object.keys(tabLabels) as DashboardTab[]).map((tab) => (
-                  <button key={tab} type="button" onClick={() => { selectTab(tab); closePanel(); }} className="rounded-xl border border-slate-200 p-4 text-left hover:bg-slate-50">
-                    <span className="block text-xl font-bold text-slate-900">{groups[tab].length}</span>
-                    <span className="text-sm text-slate-600">{tabLabels[tab]}</span>
-                  </button>
-                ))}
-              </div>
-            ) : (
-              <div className="mt-6 space-y-4 text-sm leading-relaxed text-slate-600">
-                <p>Use the status cards or tabs to switch between requests, reviews, VC approvals, approved events, and closed requests.</p>
-                <p>Use the top search bar to find requests by event name, venue, or faculty member.</p>
-                <Link href="/dean/proposals" className="inline-flex items-center gap-1 font-semibold text-[#1E2B58] hover:underline">Open all requests <ArrowRight size={15} /></Link>
-              </div>
-            )}
+            <div className="mt-6 space-y-4 text-sm leading-relaxed text-slate-600">
+              <p>Use the status cards or tabs to switch between requests, reviews, VC approvals, approved events, and closed requests.</p>
+              <p>Use the top search bar to find requests by event name, venue, or faculty member.</p>
+              <Link href="/dean/proposals" className="inline-flex items-center gap-1 font-semibold text-[#1E2B58] hover:underline">Open all requests <ArrowRight size={15} /></Link>
+            </div>
           </section>
         </div>
       )}

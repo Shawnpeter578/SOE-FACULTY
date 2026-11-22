@@ -7,9 +7,9 @@ import { Calendar, Check, Eye, EyeOff, X } from "lucide-react";
 
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
-  const [activeRole, setActiveRole] = useState("Student");
+  const [activeRole, setActiveRole] = useState("Faculty");
 
-  const roles = ["Student", "Faculty", "Dean"];
+  const roles = ["Faculty", "Dean"];
 
   const initialState: LoginState = {
     error: null,

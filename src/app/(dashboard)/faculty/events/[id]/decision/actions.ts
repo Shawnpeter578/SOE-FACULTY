@@ -65,7 +65,7 @@ export async function recordDecision(id: string, formData: FormData): Promise<st
   if (decision === "APPROVED") {
     revalidatePath("/faculty/committees");
     revalidatePath(`/faculty/committees/${event.id}`);
-    redirect(`/faculty/committees/${event.id}?locked=1`);
+    redirect(`/faculty/events/${id}/decision?confirmed=1`);
   }
   redirect(`/faculty/events/${id}/decision`);
 }

@@ -20,16 +20,18 @@ export async function loadEventCommittees(supabase: Supabase, eventId?: string, 
   return rows.success ? { data: rows.data, error: null } : { data: [], error: { code: "INVALID_RESPONSE" } };
 }
 
-export function loadCommitteeUpdates(supabase: Supabase, committeeId: string, page: number) {
+export function loadCommitteeUpdates(supabase: Supabase, committeeId: string, page: number, filesOnly: boolean) {
   const start = (page - 1) * COMMITTEE_UPDATES_PAGE_SIZE;
-  return supabase.from("event_committee_updates")
-    .select("id, title, kind, submitted_by_name, details, file_name, created_at", { count: "exact" })
-    .eq("committee_id", committeeId).order("created_at", { ascending: false }).order("id")
+  const query = supabase.from("event_committee_updates")
+    .select("id, title, kind, submitted_by, submitted_by_name, details, file_name, file_removed, created_at", { count: "exact" })
+    .eq("committee_id", committeeId);
+  if (filesOnly) query.not("file_name", "is", null);
+  return query.order("created_at", { ascending: false }).order("id")
     .range(start, start + COMMITTEE_UPDATES_PAGE_SIZE - 1).overrideTypes<CommitteeUpdate[], { merge: false }>();
 }
 
 export function committeeLoadError(code: string) {
-  return code === "PGRST202" || code === "PGRST205" || code === "42883" || code === "42P01"
+  return ["PGRST202", "PGRST204", "PGRST205", "42883", "42P01", "42703"].includes(code)
     ? "Committees will be available after the latest EventDesk database update."
     : "Committees could not be loaded. Refresh to try again.";
 }

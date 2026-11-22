@@ -10,7 +10,7 @@ import { z } from "zod";
 const loginSchema = z.object({
   email: z.string().trim().email("Enter a valid email address."),
   password: z.string().min(1, "Password is required."),
-  role: z.enum(["Student", "Faculty", "Dean"]),
+  role: z.enum(["Faculty", "Dean"]),
 });
 
 export type LoginState = {
@@ -73,7 +73,6 @@ export async function login(
   }
 
   const requestedRole = {
-    Student: "STUDENT",
     Faculty: "FACULTY",
     Dean: "DEAN",
   }[role];
@@ -102,10 +101,6 @@ export async function login(
   // Route from the role assigned to this account, never from the form selection.
   if (profile.role === "DEAN" || temporaryDeanPreview) {
     redirect("/dean/dashboard");
-  }
-
-  if (profile.role === "STUDENT") {
-    redirect("/student/dashboard");
   }
 
   if (profile.role === "FACULTY") {

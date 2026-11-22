@@ -12,10 +12,8 @@ import {
   Calendar,
   Clock,
   CalendarCheck,
-  Receipt,
   ChevronRight,
   Check,
-  AlertCircle,
   ArrowRight,
   MapPin,
   Plus,
@@ -323,11 +321,10 @@ export default function DashboardClient({
         </div>
 
         {/* Statistics */}
-        <section aria-label="Event statistics" className="grid auto-rows-fr grid-cols-2 gap-3 @min-[42rem]:grid-cols-4 sm:gap-4">
+        <section aria-label="Event statistics" className="grid auto-rows-fr grid-cols-2 gap-3 @min-[42rem]:grid-cols-3 sm:gap-4">
           <StatCard title="Pending approval" count={pendingCount} icon={Clock} />
           <StatCard title="Approved events" count={approvedCount} icon={CalendarCheck} />
           <StatCard title="Ongoing events" count={ongoingCount} icon={Calendar} />
-          <StatCard title="Bills pending" count="—" icon={Receipt} />
         </section>
 
         {/* Main dashboard content */}
@@ -365,24 +362,6 @@ export default function DashboardClient({
               dashboardEvents.map((event) => <EventCard key={event.id} event={event} />)
             )}
 
-            {/* Mobile finance placeholder */}
-            <div className="lg:hidden flex items-start gap-4 px-2 mt-4">
-              <AlertCircle
-                size={24}
-                className="text-slate-400 mt-0.5 flex-shrink-0"
-                strokeWidth={2.5}
-              />
-
-              <div>
-                <p className="text-[15px] font-bold text-slate-600">
-                  Finance module
-                </p>
-
-                <p className="text-[15px] text-[#475569] font-medium mt-0.5">
-                  Expense and invoice tracking will be available here.
-                </p>
-              </div>
-            </div>
           </div>
 
           {/* Desktop sidebar */}

@@ -1,10 +1,12 @@
 import { createClient } from "@/lib/supabase/server";
+import { redirect } from "next/navigation";
 import { getDeanAccount } from "../account";
 import { getDeanRecentActivity } from "../recent-activity";
 import DeanDashboard, { type DashboardItem } from "./dashboard-client";
 
-export default async function DeanDashboardPage() {
+export default async function DeanDashboardPage({ searchParams }: PageProps<"/dean/dashboard">) {
   const dean = await getDeanAccount();
+  if ((await searchParams).panel === "reports") redirect("/dean/reports");
   const supabase = await createClient();
 
   const [proposalResult, eventResult, activities] = await Promise.all([

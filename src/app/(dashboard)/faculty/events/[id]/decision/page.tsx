@@ -8,12 +8,13 @@ import { loadRequestLetter } from "@/lib/request-letter-server";
 import { universityName } from "@/lib/university";
 import AppLayout from "../../../components/AppLayout";
 import DecisionForm from "./decision-form";
+import EventConfirmedDialog from "./event-confirmed-dialog";
 
 const panel = "min-w-0 rounded-2xl border border-brand-border bg-brand-surface p-5";
 const outlineButton = "flex min-h-11 items-center justify-center gap-2 rounded-xl border border-brand-primary px-4 text-center text-sm font-semibold text-brand-primary hover:bg-brand-selected";
 
-export default async function DecisionPage({ params }: PageProps<"/faculty/events/[id]/decision">) {
-  const { id } = await params;
+export default async function DecisionPage({ params, searchParams }: PageProps<"/faculty/events/[id]/decision">) {
+  const [{ id }, query] = await Promise.all([params, searchParams]);
   const { profile, supabase, event, letter, back } = await loadRequestLetter(id);
   const letterHref = `/faculty/events/${id}/letter`;
   if (!event.letter_printed_at) redirect(back);
@@ -23,6 +24,7 @@ export default async function DecisionPage({ params }: PageProps<"/faculty/event
   const complete = accepted || rejected;
   if (!complete && event.status !== "AWAITING_VC_DOCUMENT") redirect(back);
   const evidence = accepted ? event.vc_approval_document_path : event.vc_rejection_proof_path;
+  const committeesHref = accepted && evidence ? `/faculty/committees/${event.id}` : null;
   const fileName = event.vc_recorded_file_name ?? (accepted ? vcApprovalFileName(event) : "VC rejection proof");
   const { data: attachment } = evidence
     ? await supabase.storage.from(EVENT_DOCUMENT_BUCKET).createSignedUrl(evidence, 3600)
@@ -35,6 +37,9 @@ export default async function DecisionPage({ params }: PageProps<"/faculty/event
 
   return (
     <AppLayout facultyName={profile.full_name}>
+      {committeesHref && query.confirmed === "1" && (
+        <EventConfirmedDialog committeesHref={committeesHref} decisionHref={`/faculty/events/${id}/decision`} />
+      )}
       <div className="mx-auto max-w-[80rem] px-4 py-5 sm:px-6 lg:px-0">
         <header>
           <Link href={back} className="inline-flex max-w-full items-center gap-2 text-sm font-medium text-text-secondary hover:text-brand-primary"><ArrowLeft size={15} className="shrink-0" aria-hidden="true" /><span className="truncate">My Events / {letter.title} / VC decision</span></Link>
@@ -71,7 +76,7 @@ export default async function DecisionPage({ params }: PageProps<"/faculty/event
                 {recordedAt && <p className="border-t border-brand-border pt-3 text-xs text-text-secondary">Recorded {recordedBy && `by ${recordedBy} `}on <time dateTime={recordedAt}>{formatApprovalTime(recordedAt)}</time></p>}
               </section>
               <div className="flex flex-wrap gap-2">
-                {accepted && evidence && <Link href={`/faculty/committees/${event.id}`} className="flex min-h-11 items-center justify-center rounded-xl bg-brand-primary px-4 text-sm font-semibold text-white hover:bg-brand-hover">Manage committees</Link>}
+                {committeesHref && <Link href={committeesHref} className="flex min-h-11 items-center justify-center rounded-xl bg-brand-primary px-4 text-sm font-semibold text-white hover:bg-brand-hover">Manage committees</Link>}
                 <Link href={back} className={outlineButton}>Back to event</Link>
               </div>
             </> : "vc_recorded_at" in event ? <DecisionForm id={id} title={letter.title} alreadyAccepted={event.vc_decision === "APPROVED"} /> : (

@@ -1,23 +1,26 @@
 "use client";
 
-import { useActionState, useEffect, useRef, useState, type PointerEvent } from "react";
-import { MapPin, PenLine } from "lucide-react";
+import { useActionState, useEffect, useMemo, useRef, useState, type ChangeEvent, type PointerEvent } from "react";
+import { Keyboard, PenLine, RotateCcw } from "lucide-react";
 import { saveProfilePreferences, type PreferencesState } from "@/app/(dashboard)/profile-preferences-actions";
 import { workplaceFields, type WorkplaceDetails } from "@/lib/profile-preferences";
-import { SIGNATURE_GRID_MAX, SIGNATURE_NAME_LIMIT, signatureStrokes, type SavedSignature, type SignaturePoint, type SignatureStroke } from "@/lib/profile-signature";
+import { SIGNATURE_GRID_MAX, SIGNATURE_NAME_LIMIT, signatureStrokes, type SavedSignature, type SignatureMark, type SignaturePoint, type SignatureStroke } from "@/lib/profile-signature";
+import { ProfileFormFooter, ProfileFormMessage, profileInputClass, profilePrimaryButtonClass, profileSecondaryButtonClass } from "./profile-form-controls";
 import SignaturePreview, { paintSignature } from "./signature-mark";
 
 const initial: PreferencesState = { success: false, message: "" };
-const panel = "min-w-0 rounded-3xl border border-brand-border bg-brand-surface p-5 sm:p-7";
-const fieldClass = "w-full rounded-xl border border-brand-border bg-white px-3.5 py-2.5 text-sm text-text-primary focus-visible:outline-2 focus-visible:outline-brand-primary disabled:bg-brand-canvas";
-const primary = "min-h-10 rounded-xl bg-brand-primary px-4 text-sm font-semibold text-white hover:bg-brand-hover disabled:opacity-50";
-const secondary = "min-h-10 rounded-xl px-3 text-sm font-semibold text-brand-primary hover:bg-brand-selected disabled:opacity-50";
+const sectionHeading = "text-lg font-bold tracking-tight text-brand-primary";
+const fieldLabel = "block min-w-0 text-sm font-semibold text-text-primary";
 
-function SaveMessage({ state }: { state: PreferencesState }) {
-  return state.message ? <p role={state.success ? "status" : "alert"} className={`text-sm ${state.success ? "text-emerald-800" : "text-red-700"}`}>{state.message}</p> : null;
+function PreferencesUnavailable({ missingMigration }: { missingMigration: boolean }) {
+  return (
+    <p role="status" className="mt-3 rounded-lg border border-brand-border bg-brand-canvas px-3 py-2.5 text-sm text-text-secondary">
+      {missingMigration ? "Workplace details and e-signatures need the latest EventDesk database update." : "Profile settings could not be loaded. Refresh to try again."}
+    </p>
+  );
 }
 
-export function WorkplaceSettings({ values }: { values: WorkplaceDetails }) {
+export function WorkplaceSettings({ values, available, missingMigration }: { values: WorkplaceDetails; available: boolean; missingMigration: boolean }) {
   const [draft, setDraft] = useState<Partial<WorkplaceDetails>>({});
   const [state, submit, pending] = useActionState(async (previous: PreferencesState, data: FormData) => {
     const result = await saveProfilePreferences(previous, data);
@@ -26,24 +29,28 @@ export function WorkplaceSettings({ values }: { values: WorkplaceDetails }) {
   }, initial);
   const dirty = workplaceFields.some(({ name }) => draft[name] !== undefined && draft[name] !== values[name]);
   return (
-    <section className={panel}>
-      <h2 className="flex items-center gap-2.5 text-xl font-bold tracking-tight text-brand-primary"><MapPin size={19} aria-hidden="true" /> Workplace details</h2>
-      <form action={submit} className="mt-4 space-y-4">
+    <section>
+      <h3 className={sectionHeading}>Workplace details</h3>
+      {!available ? <PreferencesUnavailable missingMigration={missingMigration} /> : <form action={submit} className="mt-4" aria-busy={pending}>
         <input type="hidden" name="action" value="save_workplace" />
         <fieldset disabled={pending} className="grid min-w-0 gap-4 sm:grid-cols-2">
           {workplaceFields.map(({ name, label, maxLength }) => {
-            const input = { name, maxLength, value: draft[name] ?? values[name], className: fieldClass };
+            const input = { name, maxLength, value: draft[name] ?? values[name], className: profileInputClass };
+            const onChange = (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+              const value = event.currentTarget.value;
+              setDraft((current) => ({ ...current, [name]: value }));
+            };
             return (
-              <label key={name} className={`block text-sm font-semibold ${name === "bio" ? "sm:col-span-2" : ""}`}>
+              <label key={name} className={`${fieldLabel} ${name === "bio" ? "sm:col-span-2" : ""}`}>
                 <span className="mb-1.5 block">{label}</span>
-                {name === "bio" ? <textarea {...input} rows={3} onChange={(event) => setDraft({ ...draft, [name]: event.target.value })} />
-                  : <input {...input} onChange={(event) => setDraft({ ...draft, [name]: event.target.value })} />}
+                {name === "bio" ? <textarea {...input} rows={4} onChange={onChange} className={`${profileInputClass} resize-y`} />
+                  : <input {...input} onChange={onChange} />}
               </label>
             );
           })}
         </fieldset>
-        <div className="flex flex-wrap items-center justify-between gap-3"><SaveMessage state={state} /><button type="submit" className={`${primary} ml-auto`} disabled={pending || !dirty}>{pending ? "Saving…" : "Save workplace details"}</button></div>
-      </form>
+        <ProfileFormFooter state={state} dirty={dirty} pending={pending} onDiscard={() => setDraft({})} saveLabel="Save workplace details" />
+      </form>}
     </section>
   );
 }
@@ -51,14 +58,30 @@ export function WorkplaceSettings({ values }: { values: WorkplaceDetails }) {
 export function SignatureSettings({ fullName, saved, role, available, missingMigration }: {
   fullName: string; saved: SavedSignature | null; role: "FACULTY" | "DEAN"; available: boolean; missingMigration: boolean;
 }) {
-  const [mode, setMode] = useState(saved?.kind ?? "typed");
-  const [typedName, setTypedName] = useState(saved?.kind === "typed" ? saved.value : fullName);
-  const [strokes, setStrokes] = useState<SignatureStroke[]>(() => saved?.kind === "drawn" ? signatureStrokes(saved.value) : []);
-  const [state, submit, pending] = useActionState(saveProfilePreferences, initial);
+  const [modeChoice, setModeChoice] = useState<SignatureMark["kind"] | null>(null);
+  const [typedDraft, setTypedDraft] = useState<string | null>(null);
+  const [drawnDraft, setDrawnDraft] = useState<SignatureStroke[] | null>(null);
   const drawing = useRef<HTMLCanvasElement>(null);
+  const removalDialog = useRef<HTMLDialogElement>(null);
   const activeStroke = useRef<{ pointer: number; points: SignatureStroke } | null>(null);
+  const mode = modeChoice ?? saved?.kind ?? "typed";
+  const typedName = typedDraft ?? (saved?.kind === "typed" ? saved.value : fullName);
+  const savedDrawing = saved?.kind === "drawn" ? saved.value : null;
+  const savedStrokes = useMemo(() => savedDrawing ? signatureStrokes(savedDrawing) : [], [savedDrawing]);
+  const strokes = drawnDraft ?? savedStrokes;
+  const [state, submit, pending] = useActionState(async (previous: PreferencesState, data: FormData) => {
+    const result = await saveProfilePreferences(previous, data);
+    if (result.success) {
+      setModeChoice(null);
+      setTypedDraft(null);
+      setDrawnDraft(null);
+      removalDialog.current?.close();
+    }
+    return result;
+  }, initial);
   const pointCount = strokes.reduce((count, stroke) => count + stroke.length, 0);
   const value = mode === "typed" ? typedName.trim() : strokes.map((stroke) => stroke.map((point) => point.join(",")).join(" ")).join("|");
+  const matchesSaved = mode === saved?.kind && value === saved.value;
 
   useEffect(() => {
     if (mode === "drawn" && drawing.current) paintSignature(drawing.current, strokes);
@@ -90,40 +113,75 @@ export function SignatureSettings({ fullName, saved, role, available, missingMig
     const stroke = activeStroke.current;
     if (!stroke || stroke.pointer !== event.pointerId) return;
     activeStroke.current = null;
-    if (stroke.points.length > 1) setStrokes((previous) => [...previous, stroke.points]);
+    if (stroke.points.length > 1) setDrawnDraft((previous) => [...(previous ?? savedStrokes), stroke.points]);
   }
 
   return (
-    <section className={panel} aria-labelledby="esig-title">
+    <section aria-labelledby="esig-title">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 id="esig-title" className="flex items-center gap-2.5 text-xl font-bold tracking-tight text-brand-primary"><PenLine size={19} aria-hidden="true" /> E-signature</h2>
-        {saved && <span className="rounded-full bg-success-bg px-2.5 py-1 text-xs font-semibold text-emerald-800">Saved</span>}
+        <h3 id="esig-title" className={sectionHeading}>E-signature</h3>
+        {saved && <span className={`rounded-md px-2.5 py-1 text-xs font-semibold ${matchesSaved ? "bg-success-bg text-emerald-800" : "bg-warning-bg text-amber-900"}`}>{matchesSaved ? "Saved" : "Unsaved changes"}</span>}
       </div>
-      {!available ? <p role="status" className="mt-3 text-sm text-text-secondary">{missingMigration ? "Workplace details and e-signatures need the latest EventDesk database update." : "Profile settings could not be loaded. Refresh to try again."}</p> : (
-        <form action={submit} className="mt-3 space-y-4" aria-busy={pending}>
-          <p className="text-sm text-text-secondary">{role === "DEAN" ? "You can attach your saved signature when you approve a request." : "You can use your saved signature when you sign a request letter."}</p>
-          <input type="hidden" name="kind" value={mode} />
-          <input type="hidden" name="signature" value={value} />
-          <div role="group" aria-label="Signature method" className="grid grid-cols-2 gap-1 rounded-xl bg-brand-canvas p-1">
-            {(["typed", "drawn"] as const).map((option) => <button key={option} type="button" aria-pressed={mode === option} disabled={pending} onClick={() => setMode(option)} className={`min-h-9 rounded-lg px-2 text-sm font-semibold text-brand-primary hover:bg-brand-selected ${mode === option ? "bg-white shadow-sm" : ""}`}>{option === "typed" ? "Type" : "Draw"}</button>)}
-          </div>
-          {mode === "typed" ? <>
-            <label className="block text-sm font-semibold">Signature name<input className={`${fieldClass} mt-1.5`} value={typedName} maxLength={SIGNATURE_NAME_LIMIT} onChange={(event) => setTypedName(event.target.value)} disabled={pending} /></label>
-            <div aria-label="Signature preview" className="rounded-xl border border-brand-border bg-brand-canvas px-4 py-3"><SignaturePreview signature={{ kind: "typed", value }} /></div>
-          </> : <div>
-            <p className="mb-2 text-xs text-text-secondary">Draw with a mouse, touch or stylus.</p>
-            <canvas ref={drawing} width={800} height={240} aria-label="Signature drawing area" onPointerDown={start} onPointerMove={move} onPointerUp={end} onPointerCancel={end} onLostPointerCapture={end} className="block aspect-[10/3] w-full touch-none rounded-xl border border-brand-border bg-brand-canvas" />
-            <div className="mt-1 flex justify-end gap-1">
-              <button type="button" disabled={pending || !strokes.length} onClick={() => setStrokes((previous) => previous.slice(0, -1))} className={secondary}>Undo stroke</button>
-              <button type="button" disabled={pending || !strokes.length} onClick={() => setStrokes([])} className={secondary}>Clear</button>
+      {!available ? <PreferencesUnavailable missingMigration={missingMigration} /> : (
+        <>
+          <p className="mt-1.5 text-sm text-text-secondary">{role === "DEAN" ? "Attach your saved signature when you approve a request." : "Use your saved signature when you sign a request letter."}</p>
+          <form action={submit} className="mt-4 space-y-4" aria-busy={pending}>
+            <input type="hidden" name="action" value="save_signature" />
+            <input type="hidden" name="kind" value={mode} />
+            <input type="hidden" name="signature" value={value} />
+            <div role="group" aria-label="Signature method" className="inline-flex gap-1 rounded-lg border border-brand-border bg-brand-canvas p-1">
+              {([
+                { kind: "typed", label: "Type", icon: Keyboard },
+                { kind: "drawn", label: "Draw", icon: PenLine },
+              ] as const).map(({ kind, label, icon: Icon }) => (
+                <button key={kind} type="button" aria-pressed={mode === kind} disabled={pending} onClick={() => setModeChoice(kind)} className={`inline-flex min-h-9 min-w-21 items-center justify-center gap-2 rounded-md px-2.5 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-brand-primary ${mode === kind ? "bg-brand-primary text-white" : "text-brand-primary hover:bg-brand-selected"}`}>
+                  <Icon size={15} aria-hidden="true" />{label}
+                </button>
+              ))}
             </div>
-          </div>}
-          <SaveMessage state={state} />
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <button name="action" value="save_signature" type="submit" className={primary} disabled={pending || !value || (mode === saved?.kind && value === saved.value)}>{pending ? "Saving…" : "Save signature"}</button>
-            {saved && <button name="action" value="remove_signature" type="submit" disabled={pending} className={secondary}>Remove saved signature</button>}
-          </div>
-        </form>
+            {mode === "typed" ? <>
+              <label className={fieldLabel}>Signature name<input className={`${profileInputClass} mt-1.5`} value={typedName} maxLength={SIGNATURE_NAME_LIMIT} onChange={(event) => setTypedDraft(event.target.value)} disabled={pending} /></label>
+              <figure className="rounded-lg border border-brand-border bg-brand-canvas px-4 py-3.5 sm:px-5">
+                <figcaption className="text-xs font-semibold text-text-secondary">Signature preview</figcaption>
+                <div className="mt-2 flex min-h-16 items-center border-b border-dashed border-brand-border">
+                  {value ? <SignaturePreview signature={{ kind: "typed", value }} className="text-3xl! [overflow-wrap:anywhere]" /> : <p className="text-sm text-text-secondary">Enter a name to preview it here.</p>}
+                </div>
+              </figure>
+            </> : <div className="max-w-xl">
+              <p className="mb-2 text-sm text-text-secondary">Draw with a mouse, touch or stylus.</p>
+              <div className="relative rounded-lg border border-brand-border bg-brand-canvas">
+                <span className="pointer-events-none absolute inset-x-4 bottom-[27%] border-b border-dashed border-brand-border" aria-hidden="true" />
+                <canvas ref={drawing} width={800} height={240} aria-label="Signature drawing area" onPointerDown={start} onPointerMove={move} onPointerUp={end} onPointerCancel={end} onLostPointerCapture={end} className="relative block aspect-[10/3] w-full cursor-crosshair touch-none" />
+              </div>
+              <div className="mt-1 flex justify-end gap-1">
+                <button type="button" disabled={pending || !strokes.length} onClick={() => setDrawnDraft(strokes.slice(0, -1))} className={`${profileSecondaryButtonClass} gap-1.5`}><RotateCcw size={14} aria-hidden="true" />Undo stroke</button>
+                <button type="button" disabled={pending || !strokes.length} onClick={() => setDrawnDraft([])} className={profileSecondaryButtonClass}>Clear</button>
+              </div>
+            </div>}
+            <ProfileFormMessage state={state} />
+            <div className="flex flex-wrap items-center justify-end gap-2 border-t border-brand-border pt-4">
+              {saved && <button type="button" disabled={pending} onClick={() => removalDialog.current?.showModal()} className={`${profileSecondaryButtonClass} mr-auto text-red-700`}>Remove signature</button>}
+              <button type="submit" className={profilePrimaryButtonClass} disabled={pending || !value || matchesSaved}>{pending ? "Saving…" : "Save signature"}</button>
+            </div>
+          </form>
+          <dialog
+            ref={removalDialog}
+            aria-labelledby="remove-esig-title"
+            onCancel={(event) => { if (pending) event.preventDefault(); }}
+            className="m-auto w-[min(26rem,calc(100%-2rem))] rounded-dialog border border-brand-border bg-brand-surface p-5 text-text-primary shadow-xl backdrop:bg-brand-hover/35 sm:p-6"
+          >
+            <h4 id="remove-esig-title" className={sectionHeading}>Remove saved e-signature?</h4>
+            <p className="mt-2 text-sm text-text-secondary">Previously signed records keep the signature already applied. You can set up a new one here anytime.</p>
+            <form action={submit} className="mt-5 space-y-3">
+              <input type="hidden" name="action" value="remove_signature" />
+              {!state.success && <ProfileFormMessage state={state} />}
+              <div className="flex flex-wrap justify-end gap-2">
+                <button type="button" autoFocus disabled={pending} className={profileSecondaryButtonClass} onClick={() => removalDialog.current?.close()}>Cancel</button>
+                <button type="submit" disabled={pending} className="min-h-11 rounded-lg bg-red-700 px-4 text-sm font-semibold text-white hover:bg-red-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-800 disabled:opacity-50">Remove signature</button>
+              </div>
+            </form>
+          </dialog>
+        </>
       )}
     </section>
   );
