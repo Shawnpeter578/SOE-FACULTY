@@ -104,6 +104,9 @@ export async function login(
   }
 
   if (profile.role === "FACULTY") {
+    const next = formData.get("next");
+    const path = typeof next === "string" && /^\/faculty\/co-faculty\/committees\/[\da-f-]{36}$/i.test(next) ? next : null;
+    if (path && z.uuid().safeParse(path.split("/").at(-1)).success) redirect(`${path}#committee-composer`);
     redirect("/faculty/dashboard");
   }
 

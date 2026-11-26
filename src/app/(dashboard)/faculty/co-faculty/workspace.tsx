@@ -1,6 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, CalendarDays, CircleCheck, ClipboardList, Clock3, MapPin, UsersRound } from "lucide-react";
-import MetricCard from "@/components/metric-card";
+import { CalendarDays, ClipboardList, MapPin, UsersRound } from "lucide-react";
 import { requireRole } from "@/lib/auth/guard";
 import { formatEventDateRange } from "@/lib/event-approval";
 import { coordinatorProgress, progressLabels, type CoordinatorAssignment, type CoordinatorProgress } from "@/lib/event-coordinators";
@@ -18,19 +17,19 @@ const badgeStyle: Record<CoordinatorProgress, string> = {
 };
 
 type Filters = Record<string, string | string[] | undefined>;
+const statusOptions = ["open", ...coordinatorProgress] as const;
+const statusLabels = { open: "Open assignments", ...progressLabels };
 
-export default async function CoFacultyWorkspace({ searchParams }: { searchParams?: Promise<Filters> }) {
+export default async function CoFacultyWorkspace({ searchParams }: { searchParams: Promise<Filters> }) {
   const profile = await requireRole(["FACULTY"]);
   const supabase = await createClient();
   const [loaded, filters] = await Promise.all([loadCoordinatorAssignments(supabase), searchParams]);
   const { assignments, message } = loaded;
-  const isDashboard = searchParams === undefined;
-  const query = typeof filters?.q === "string" ? filters.q.trim().slice(0, 120) : "";
-  const status = coordinatorProgress.find((progress) => progress === filters?.status);
-  const matching = assignments.filter((assignment) => (!status || assignment.progress === status) && (!query ||
+  const query = typeof filters.q === "string" ? filters.q.trim().slice(0, 120) : "";
+  const status = statusOptions.find((progress) => progress === filters.status);
+  const matching = assignments.filter((assignment) => (!status || (status === "open" ? assignment.progress !== "DONE" : assignment.progress === status)) && (!query ||
     [assignment.title, assignment.venue, assignment.owner_name, assignment.responsibilities].some((value) => value.toLowerCase().includes(query.toLowerCase()))));
-  const visible = isDashboard ? matching.filter((item) => item.progress !== "DONE").slice(0, 4) : matching;
-  function filterHref(progress?: CoordinatorProgress) {
+  function filterHref(progress?: (typeof statusOptions)[number]) {
     const params = new URLSearchParams();
     if (query) params.set("q", query);
     if (progress) params.set("status", progress);
@@ -44,36 +43,24 @@ export default async function CoFacultyWorkspace({ searchParams }: { searchParam
           <div className="flex min-w-0 items-start gap-3.5">
             <span className="grid size-12 shrink-0 place-items-center rounded-xl bg-brand-selected text-brand-primary"><UsersRound size={23} aria-hidden="true" /></span>
             <div>
-              <h1 className="text-2xl font-bold tracking-tight text-brand-primary sm:text-3xl">{isDashboard ? "Co-Faculty dashboard" : "My assignments"}</h1>
-              <p className="mt-1 text-sm text-text-secondary">{isDashboard ? "See the events you help coordinate and track your assignments." : "Review your responsibilities and update progress for each event."}</p>
+              <h1 className="text-2xl font-bold tracking-tight text-brand-primary sm:text-3xl">My assignments</h1>
+              <p className="mt-1 text-sm text-text-secondary">Review your responsibilities and update progress for each event.</p>
             </div>
           </div>
-          {isDashboard && <div className="flex flex-wrap gap-2">
-            <Link href="/faculty/co-faculty/committees" className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-brand-primary px-4 text-sm font-semibold text-white hover:bg-brand-hover">My committees <ArrowRight size={16} aria-hidden="true" /></Link>
-            <Link href={assignmentsHref} className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-brand-border px-4 text-sm font-semibold text-brand-primary hover:bg-brand-selected">All assignments</Link>
-          </div>}
         </header>
 
         {message ? <p role="status" className="rounded-2xl border border-brand-border bg-white p-5 text-sm text-text-secondary">{message}</p> : <>
-          {isDashboard && <div className="grid gap-3 sm:grid-cols-3" aria-label="Assignment totals">
-            <MetricCard title="Assigned events" count={assignments.length} icon={ClipboardList} />
-            <MetricCard title="In progress" count={assignments.filter((assignment) => assignment.progress === "IN_PROGRESS").length} icon={Clock3} />
-            <MetricCard title="Completed" count={assignments.filter((assignment) => assignment.progress === "DONE").length} icon={CircleCheck} />
-          </div>}
-
           <section aria-labelledby="assignments-title" className="min-w-0 space-y-3">
-            {isDashboard ? <h2 id="assignments-title" className="text-lg font-bold text-brand-primary">Open assignments</h2> : <>
-              <h2 id="assignments-title" className="sr-only">Assignment list</h2>
-              <nav aria-label="Filter assignments by progress" className="flex flex-wrap gap-2">
-                {[undefined, ...coordinatorProgress].map((option) => <Link key={option ?? "all"} href={filterHref(option)} aria-current={status === option ? "true" : undefined} className={`rounded-full border border-brand-border px-3.5 py-2 text-sm font-semibold text-brand-primary hover:bg-brand-border ${status === option ? "bg-brand-selected" : "bg-white"}`}>{option ? progressLabels[option] : "All assignments"}</Link>)}
-              </nav>
-              {query && <p className="text-sm text-text-secondary">Results for “{query}” <Link href={status ? `${assignmentsHref}?status=${status}` : assignmentsHref} className="ml-2 font-semibold text-brand-primary underline">Clear search</Link></p>}
-            </>}
-            {visible.length ? <ul className="grid min-w-0 gap-4 xl:grid-cols-2">{visible.map((assignment) => <AssignmentCard key={assignment.id} assignment={assignment} />)}</ul>
+            <h2 id="assignments-title" className="sr-only">Assignment list</h2>
+            <nav aria-label="Filter assignments by progress" className="flex flex-wrap gap-2">
+              {[undefined, ...statusOptions].map((option) => <Link key={option ?? "all"} href={filterHref(option)} aria-current={status === option ? "true" : undefined} className={`rounded-full border border-brand-border px-3.5 py-2 text-sm font-semibold text-brand-primary hover:bg-brand-border ${status === option ? "bg-brand-selected" : "bg-white"}`}>{option ? statusLabels[option] : "All assignments"}</Link>)}
+            </nav>
+            {query && <p className="text-sm text-text-secondary">Results for “{query}” <Link href={status ? `${assignmentsHref}?status=${status}` : assignmentsHref} className="ml-2 font-semibold text-brand-primary underline">Clear search</Link></p>}
+            {matching.length ? <ul className="grid min-w-0 gap-4 xl:grid-cols-2">{matching.map((assignment) => <AssignmentCard key={assignment.id} assignment={assignment} />)}</ul>
               : <div className="rounded-2xl border border-brand-border bg-white px-5 py-9 text-center">
                 <span className="mx-auto grid size-11 place-items-center rounded-xl bg-brand-selected text-brand-primary"><ClipboardList size={21} aria-hidden="true" /></span>
-                <p className="mt-3 font-bold text-brand-primary">{query || status ? "No matching assignments" : assignments.length ? "No open assignments" : "No assignments yet"}</p>
-                <p className="mt-1 text-sm text-text-secondary">{query || status ? "Try a different search or progress filter." : assignments.length ? "Completed assignments are in All assignments." : "Events appear here when an event owner assigns you as a co-coordinator."}</p>
+                <p className="mt-3 font-bold text-brand-primary">{query || status ? "No matching assignments" : "No assignments yet"}</p>
+                <p className="mt-1 text-sm text-text-secondary">{query || status ? "Try a different search or progress filter." : "Events appear here when an event owner assigns you as a co-coordinator."}</p>
               </div>}
           </section>
         </>}

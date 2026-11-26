@@ -122,8 +122,18 @@ test("faculty notifications combine owned approval updates and load the full his
   }));
   const ownerFilters = [];
   let missingVcColumns = false;
+  let uploads = [];
   const event = { id: "event", proposal_id: proposalId, title: "Workshop", letter_printed_at: "2026-11-19T08:30:00Z", vc_decision: "APPROVED", vc_note: "Approved", vc_decided_at: "2026-11-19T09:00:00Z", vc_document_uploaded_at: "2026-11-19T10:00:00Z" };
   const supabase = {
+    rpc(name) {
+      assert.equal(name, "committee_upload_notifications");
+      const query = {
+        order() { return query; },
+        range() { return query; },
+        async overrideTypes() { return { data: uploads, error: null }; },
+      };
+      return query;
+    },
     from(table) {
       let columns = "";
       let from = 0;
@@ -163,6 +173,15 @@ test("faculty notifications combine owned approval updates and load the full his
   assert.equal(all.items.length, 206);
   assert.equal(all.items[0].id, "document:event");
   assert.equal(all.items.at(-1).id, "dean:review-204");
+
+  uploads = [{
+    id: "upload", event_id: "event", committee_id: "committee", proposal_id: proposalId,
+    event_title: "Workshop", committee_name: "Logistics", submitted_by_name: "Co-faculty",
+    file_name: "report.pdf", created_at: "2026-11-19T11:00:00Z",
+  }];
+  const withUpload = await (await GET(new Request("https://example.test/faculty/notifications"))).json();
+  assert.equal(withUpload.items[0].href, "/faculty/committees/event/committee?view=files");
+  assert.equal(withUpload.items[0].note, "report.pdf");
 });
 
 
@@ -369,7 +388,7 @@ test("valid request retains every field and converts numeric inputs", () => {
 
 test("reject invalid schedules, incomplete fields and invalid estimates", () => {
   for (const overrides of [
-    { title: " " }, { description: "Too short" }, { objectives: "" }, { event_type: "Invalid" },
+    { title: " " }, { description: "Too short" }, { objectives: "" }, { event_type: " " }, { event_type: "a".repeat(101) },
     { start_date: "2026-02-30" }, { end_date: "2026-11-30" }, { start_time: "25:00" },
     { end_time: "09:00" }, { end_time: "08:30" }, { expected_participants: "0" },
     { expected_participants: "2.5" }, { estimated_budget: "" }, { estimated_budget: "-1" },
@@ -394,6 +413,19 @@ test("submission persists all inputs with authenticated ownership and refreshes 
   assert.equal(response.proposalId, proposalId);
   assert.deepEqual(app.saved[0], { ...eventRequestSchema.parse(values), created_by: facultyId, status: "SUBMITTED", attachments: [] });
   assert.deepEqual(app.revalidated, ["/faculty/events", "/faculty/dashboard", "/dean/dashboard", "/dean/proposals"]);
+});
+
+test("submission stores custom labels and calculates duration across midnight", async () => {
+  const app = harness();
+  const response = await app.submit(form({
+    event_type: "  Hackathon  ", venue: "  Robotics lab  ",
+    start_time: "22:30", end_date: "2026-12-02", end_time: "00:15",
+    duration: "99 hours",
+  }));
+  assert.equal(response.success, true);
+  assert.equal(app.saved[0].event_type, "Hackathon");
+  assert.equal(app.saved[0].venue, "Robotics lab");
+  assert.equal(app.saved[0].duration, "1 hour 45 minutes");
 });
 
 test("unauthorized and invalid submissions never upload or create records", async () => {

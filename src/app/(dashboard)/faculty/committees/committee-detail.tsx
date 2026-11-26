@@ -12,8 +12,8 @@ import { AssignCommitteeForm, CommitteeManagement, CommitteeUpdateForm } from ".
 import { CommitteeHeader, committeePage, committeePanel } from "./workspace-ui";
 
 export default async function CommitteeDetail({ committeeId, eventId, page, filesOnly }: { committeeId: string; eventId?: string; page?: string | string[]; filesOnly: boolean }) {
-  const profile = await requireRole(["FACULTY"]);
   if (!z.uuid().safeParse(committeeId).success || (eventId && !z.uuid().safeParse(eventId).success)) notFound();
+  const profile = await requireRole(["FACULTY"]);
 
   const requestedPage = typeof page === "string" && /^[1-9][0-9]{0,5}$/.test(page) ? Number(page) : 1;
   const supabase = await createClient();
@@ -55,7 +55,7 @@ export default async function CommitteeDetail({ committeeId, eventId, page, file
               <Link href={fileHref} aria-current={filesOnly ? "page" : undefined} className={`${tab} ${filesOnly ? "border-brand-primary text-brand-primary" : "border-transparent text-text-secondary"}`}><Paperclip size={17} aria-hidden="true" />Shared files</Link>
             </nav>
             {!filesOnly && <div id="committee-composer" className="border-b border-brand-border bg-brand-canvas/60 p-4 sm:p-5">
-              <CommitteeUpdateForm committeeId={committee.id} href={href} />
+              <CommitteeUpdateForm committeeId={committee.id} href={href} confirmFileSent={!eventId} />
             </div>}
             <div className="p-4 sm:p-5">
             {updateError ? <p role="status" className="mt-3 text-sm text-text-secondary">{committeeLoadError(updateError.code)}</p>

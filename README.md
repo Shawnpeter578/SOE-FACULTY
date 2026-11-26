@@ -90,3 +90,16 @@ Dashboard visibility alone will not be considered an authorization mechanism. Se
 7. Event-specific permissions.
 
 Further modules will be developed on top of this foundation.
+
+### Committee upload reminders
+
+Apply the Supabase migrations with `supabase db push` and deploy the updated app. In Render, create a Node **Cron Job** from the same repository. Use `npm ci` as the build command, `node scripts/send-committee-reminders.mjs` as the run command, and `0 * * * *` to check hourly. The job runs separately from the web service.
+
+Set these environment variables on the cron job:
+
+- `NEXT_PUBLIC_SUPABASE_URL` for the existing Supabase project.
+- `SUPABASE_SERVICE_ROLE_KEY` for that project's server-only service role key.
+- `EVENTDESK_APP_URL` for the deployed app's HTTPS URL.
+- `RESEND_API_KEY` and `EVENTDESK_REMINDER_FROM` for your verified Resend sender.
+
+To check eligibility without sending email or marking anything as sent, run `node scripts/send-committee-reminders.mjs --dry-run` with the two Supabase variables configured. An assigned co-faculty member becomes eligible 72 hours after the event ends in IST if they have never shared an attachment in that committee. When an older request has no end time, the job uses the end of the event's final day. The first live run can include overdue existing events.

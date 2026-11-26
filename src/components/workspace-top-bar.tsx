@@ -2,6 +2,7 @@ import Form from "next/form";
 import Link from "next/link";
 import { ArrowRight, LayoutGrid, Search } from "lucide-react";
 import type { ReactNode } from "react";
+import LogoutButton from "./logout-button";
 
 export function workspaceInitials(name: string, fallback: string) {
   return name.trim().split(/\s+/).slice(0, 2).map((word) => word[0]).join("").toUpperCase() || fallback;
@@ -62,6 +63,7 @@ export default function WorkspaceTopBar({
           </span>
           <span className="hidden max-w-36 truncate text-sm font-semibold xl:block">{name}</span>
         </Link>}
+        <LogoutButton />
       </div>
     </header>
   );

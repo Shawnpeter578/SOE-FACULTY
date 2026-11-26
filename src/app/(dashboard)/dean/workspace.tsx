@@ -3,7 +3,7 @@
 import { useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { Bell, CalendarDays, CircleCheck, CircleHelp, CircleX, FileText, LayoutDashboard, UserRound, UsersRound, X } from "lucide-react";
+import { Bell, CalendarDays, CircleHelp, FileText, LayoutDashboard, UserRound, UsersRound, X } from "lucide-react";
 import WorkspaceTopBar, { workspaceInitials } from "@/components/workspace-top-bar";
 import { formatApprovalTime } from "@/lib/event-approval";
 import { getStatusLabel } from "../faculty/events/event-status";
@@ -13,8 +13,6 @@ export type DeanActivity = { id: string; title: string; status: string; at: stri
 const sidebarLinks = [
   { label: "Dashboard", href: "/dean/dashboard", icon: LayoutDashboard },
   { label: "Requests", href: "/dean/proposals", icon: FileText },
-  { label: "Approved events", href: "/dean/proposals?status=approved", icon: CircleCheck },
-  { label: "Closed events", href: "/dean/proposals?status=closed", icon: CircleX },
   { label: "Reports", href: "/dean/reports", icon: UsersRound },
 ];
 
@@ -25,7 +23,6 @@ function sidebarClass(active: boolean) {
 export default function DeanWorkspace({ name, activity, children }: { name: string; activity: DeanActivity[]; children: ReactNode }) {
   const pathname = usePathname();
   const params = useSearchParams();
-  const status = params.get("status");
   const panel = params.get("panel");
   const onRequests = pathname.startsWith("/dean/proposals");
   const onReports = pathname.startsWith("/dean/reports");
@@ -42,11 +39,9 @@ export default function DeanWorkspace({ name, activity, children }: { name: stri
         </Link>
         <nav aria-label="Dean navigation" className="space-y-1 px-3 pt-4">
           {sidebarLinks.map(({ label, href, icon: Icon }) => {
-            const active = href.endsWith("status=approved") ? onRequests && status === "approved"
-              : href.endsWith("status=closed") ? onRequests && status === "closed"
-              : href === "/dean/reports" ? onReports
-              : href.endsWith("/proposals") ? onRequests && status !== "approved" && status !== "closed"
-              : onDashboard && !panel;
+            const active = href === "/dean/reports" ? onReports
+              : href === "/dean/proposals" ? onRequests
+                : onDashboard && !panel;
             return <Link key={href} href={href} aria-current={active ? "page" : undefined} className={sidebarClass(active)}><Icon size={19} aria-hidden="true" />{label}</Link>;
           })}
         </nav>

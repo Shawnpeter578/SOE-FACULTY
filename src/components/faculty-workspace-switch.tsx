@@ -4,8 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Check, ChevronDown, LayoutGrid, UserRound, UsersRound } from "lucide-react";
 
-export default function FacultyWorkspaceSwitch({ name, initials, coFaculty }: {
-  name: string; initials: string; coFaculty: boolean;
+export default function FacultyWorkspaceSwitch({ name, initials, coFaculty, profileHref }: {
+  name: string; initials: string; coFaculty: boolean; profileHref: string;
 }) {
   const [open, setOpen] = useState(false);
   const control = useRef<HTMLDivElement>(null);
@@ -45,7 +45,7 @@ export default function FacultyWorkspaceSwitch({ name, initials, coFaculty }: {
           <UsersRound size={17} aria-hidden="true" />Co-Faculty{coFaculty && <Check size={16} aria-label="Current workspace" className="ml-auto" />}
         </Link>
         <div className="mt-1 border-t border-brand-border pt-1">
-          <Link href="/faculty/profile" onClick={() => setOpen(false)} className={settingsClass}><UserRound size={17} aria-hidden="true" />Profile settings</Link>
+          <Link href={profileHref} onClick={() => setOpen(false)} className={settingsClass}><UserRound size={17} aria-hidden="true" />Profile settings</Link>
         </div>
       </nav>}
     </div>

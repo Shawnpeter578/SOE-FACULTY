@@ -17,6 +17,8 @@ export default function AppLayout({ children, facultyName, refreshIntervalMs }: 
   const pathname = usePathname();
   const initials = getFacultyInitials(facultyName);
   const isCoFaculty = pathname === '/faculty/co-faculty' || pathname.startsWith('/faculty/co-faculty/');
+  const profileHref = isCoFaculty ? '/faculty/co-faculty/profile' : '/faculty/profile';
+  const isProfile = pathname === profileHref;
   const isCurrent = (href: string) => pathname === href || (href !== '/faculty/co-faculty' && pathname.startsWith(`${href}/`));
   const isEventsPage = /^\/faculty\/events(?:\/|$)/.test(pathname);
   const isCommitteesPage = /^\/faculty\/(?:co-faculty\/)?committees(?:\/|$)/.test(pathname);
@@ -38,12 +40,12 @@ export default function AppLayout({ children, facultyName, refreshIntervalMs }: 
   ];
 
   // Update mobileNav paths
-  const mobileNav = isCoFaculty ? [...coordinatorNav, { href: '/faculty/profile', label: 'Profile', icon: User }] : [
+  const mobileNav = isCoFaculty ? [...coordinatorNav, { href: profileHref, label: 'Profile', icon: User }] : [
     { href: '/faculty/dashboard', label: 'Home', icon: LayoutGrid },
     { href: '/faculty/events', label: 'Events', icon: Calendar },
     { href: '/faculty/committees', label: 'Committees', icon: Users },
     { href: '/faculty/reports', label: 'Reports', icon: LineChart },
-    { href: '/faculty/profile', label: 'Profile', icon: User },
+    { href: profileHref, label: 'Profile', icon: User },
   ];
 
   const workspace = (
@@ -86,12 +88,13 @@ export default function AppLayout({ children, facultyName, refreshIntervalMs }: 
 
         <div className="p-4 space-y-4">
           <Link 
-            href="/faculty/profile"
+            href={profileHref}
+            aria-current={isProfile ? 'page' : undefined}
             className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-              pathname === '/faculty/profile' ? 'bg-[#EEF2F6] text-[#1A2234] font-semibold' : 'text-slate-600 hover:bg-slate-50 hover:text-[#1A2234]'
+              isProfile ? 'bg-[#EEF2F6] text-[#1A2234] font-semibold' : 'text-slate-600 hover:bg-slate-50 hover:text-[#1A2234]'
             }`}
           >
-            <User className={`w-5 h-5 ${pathname === '/faculty/profile' ? 'text-[#1A2234]' : 'text-slate-400'}`} />
+            <User className={`w-5 h-5 ${isProfile ? 'text-[#1A2234]' : 'text-slate-400'}`} />
             Profile
           </Link>
           
@@ -103,7 +106,7 @@ export default function AppLayout({ children, facultyName, refreshIntervalMs }: 
             </button>
           </div>
 
-          <Link href="/faculty/profile" className="flex items-center gap-3 pt-2">
+          <Link href={profileHref} className="flex items-center gap-3 pt-2">
             <div className="w-9 h-9 shrink-0 rounded-full bg-[#EEF2F6] text-[#1A2234] flex items-center justify-center font-bold text-sm" aria-hidden="true">
               {initials}
             </div>
@@ -127,7 +130,7 @@ export default function AppLayout({ children, facultyName, refreshIntervalMs }: 
           showSearch={!isEventsPage && !isCommitteesPage}
           showOnMobile={isDashboard || isCoFaculty}
           notifications={<FacultyNotificationButton />}
-          profileControl={<FacultyWorkspaceSwitch key={pathname} name={facultyName} initials={initials} coFaculty={isCoFaculty} />}
+          profileControl={<FacultyWorkspaceSwitch key={pathname} name={facultyName} initials={initials} coFaculty={isCoFaculty} profileHref={profileHref} />}
         />
 
         {/* Dynamic Page Content */}
@@ -136,7 +139,7 @@ export default function AppLayout({ children, facultyName, refreshIntervalMs }: 
         </div>
 
         {/* Global Mobile FAB */}
-        {!isCoFaculty && !isEventsPage && !isCommitteesPage && !isReportsPage && pathname !== '/faculty/profile' && <div className="fixed bottom-24 right-4 lg:hidden flex items-end gap-3 z-40 pointer-events-none">
+        {!isCoFaculty && !isEventsPage && !isCommitteesPage && !isReportsPage && !isProfile && <div className="fixed bottom-24 right-4 lg:hidden flex items-end gap-3 z-40 pointer-events-none">
           {/* We keep pointer-events-none on the container so we can click through it, but enable it on the button */}
           <Link href="/faculty/request" aria-label="New event request" className="w-14 h-14 bg-[#1A2234] text-white rounded-full flex items-center justify-center shadow-lg hover:bg-[#111827] active:scale-95 transition-all flex-shrink-0 pointer-events-auto">
             <Plus className="w-6 h-6" />

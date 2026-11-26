@@ -1,9 +1,15 @@
 
 "use client";
 
-import { useActionState, useState } from "react";
+import { Suspense, useActionState, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { login, type LoginState } from "./actions";
 import { Calendar, Check, Eye, EyeOff, X } from "lucide-react";
+
+function LoginDestination() {
+  const next = useSearchParams().get("next");
+  return next ? <input type="hidden" name="next" value={next} /> : null;
+}
 
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
@@ -133,6 +139,7 @@ export default function LoginPage() {
 
             {/* Send selected role to server action */}
             <input type="hidden" name="role" value={activeRole} />
+            <Suspense fallback={null}><LoginDestination /></Suspense>
 
             {/* Email Input */}
             <div className="space-y-2.5">

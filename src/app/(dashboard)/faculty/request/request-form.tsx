@@ -4,14 +4,14 @@ import { useEffect, useRef, useState, useTransition, type ChangeEvent, type Form
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AlertCircle, ArrowLeft, Calendar, Check, FileText, MapPin, Upload, Users, Wallet, X } from "lucide-react";
-import { eventRequestSchema } from "@/lib/validation/event-proposal";
+import { eventRequestSchema, formatEventDuration } from "@/lib/validation/event-proposal";
 import { validateAttachments } from "@/lib/validation/proposal-attachments";
 import { submitEventProposal } from "../events/new/actions";
 
 const DEFAULT_VALUES = {
-  title: "", event_type: "Workshop", description: "", objectives: "", resource_person: "",
-  start_date: "", end_date: "", start_time: "", end_time: "", venue: "Innovation Hall",
-  duration: "", department: "Computer Science", expected_participants: "",
+  title: "", event_type: "Workshop", custom_event_type: "", description: "", objectives: "", resource_person: "",
+  start_date: "", end_date: "", start_time: "", end_time: "", venue: "", custom_venue: "",
+  department: "", expected_participants: "",
   target_audience: "Computer Science students", estimated_budget: "", sponsorship_expected: false,
   special_requirements: "",
 };
@@ -21,9 +21,20 @@ type FieldErrors = Record<string, string>;
 type InputChange = ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>;
 
 const STEPS = ["Basics", "Schedule and venue", "Participants and budget estimate", "Review and send"];
+const EVENT_TYPES = ["Workshop", "Technical", "Cultural", "Sports", "Other", "Custom"];
+const VENUES = [
+  "Seminar Hall", "LCRI (Robert Sequeira Hall)", "L F Rasquinha Hall", "Sanidhya Hall",
+  "Maggis Hall", "Eric Mathias Hall", "Joseph Willy Hall",
+  "Innovation Hall", "Main Auditorium", "Seminar Room A", "Other",
+];
+const DEPARTMENTS = [
+  "Computer Science Engineering", "Information Science Engineering",
+  "Computer Science in Artificial Intelligence", "Electronics and Communication Engineering",
+  "Computer Science", "Electronics", "Mechanical",
+];
 const STEP_FIELDS: FieldName[][] = [
-  ["title", "event_type", "description", "objectives", "resource_person"],
-  ["start_date", "end_date", "start_time", "end_time", "venue", "duration", "department"],
+  ["title", "event_type", "custom_event_type", "description", "objectives", "resource_person"],
+  ["start_date", "end_date", "start_time", "end_time", "venue", "custom_venue", "department"],
   ["expected_participants", "target_audience", "estimated_budget", "sponsorship_expected", "special_requirements"],
 ];
 const inputClass = "w-full rounded-xl border border-brand-border bg-white px-4 py-3.5 text-sm text-text-primary outline-none focus:border-brand-primary focus:ring-1 focus:ring-brand-primary disabled:opacity-60";
@@ -42,6 +53,11 @@ export default function RequestForm({ profile }: { profile: { id: string; fullNa
   const confirmation = useRef<HTMLDialogElement>(null);
   const dashboardButton = useRef<HTMLButtonElement>(null);
   const draftKey = `eventdesk:draft:${profile.id}`;
+  const customType = values.event_type === "Custom";
+  const customVenue = values.venue === "Other";
+  const eventType = (customType ? values.custom_event_type : values.event_type).trim();
+  const venue = (customVenue ? values.custom_venue : values.venue).trim();
+  const duration = formatEventDuration(values);
 
   useEffect(() => {
     if (!sent) return;
@@ -103,12 +119,15 @@ export default function RequestForm({ profile }: { profile: { id: string; fullNa
   }
 
   function getErrors() {
-    const parsed = eventRequestSchema.safeParse(values);
+    const parsed = eventRequestSchema.safeParse({ ...values, event_type: eventType, venue });
     const nextErrors: FieldErrors = {};
     if (!parsed.success) for (const issue of parsed.error.issues) {
-      const key = String(issue.path[0]);
+      const field = issue.path[0];
+      const key = field === "event_type" && customType ? "custom_event_type"
+        : field === "venue" && customVenue ? "custom_venue" : String(field);
       nextErrors[key] ??= issue.message;
     }
+    if (!venue) nextErrors[customVenue ? "custom_venue" : "venue"] = customVenue ? "Enter the venue name." : "Choose a venue.";
     // Check the schedule at step 2, even before required estimates in step 3 exist.
     if (values.start_date && values.end_date && values.end_date < values.start_date) {
       nextErrors.end_date = "End date must be on or after the start date.";
@@ -158,7 +177,9 @@ export default function RequestForm({ profile }: { profile: { id: string; fullNa
   function send() {
     if (submitting.current || sent) return;
     const payload = new FormData();
-    for (const [key, value] of Object.entries(values)) payload.set(key, String(value));
+    for (const [key, value] of Object.entries({ ...values, event_type: eventType, venue })) {
+      if (key !== "custom_event_type" && key !== "custom_venue") payload.set(key, String(value));
+    }
     for (const file of files) payload.append("attachments", file);
     submitting.current = true;
     setMessage("");
@@ -173,7 +194,10 @@ export default function RequestForm({ profile }: { profile: { id: string; fullNa
           setMessage(response.message ?? "Unable to submit your request.");
           heading.current?.scrollIntoView({ block: "start" });
           if (response.errors) {
-            const fieldErrors = Object.fromEntries(Object.entries(response.errors).map(([key, messages]) => [key, messages[0]]));
+            const fieldErrors = Object.fromEntries(Object.entries(response.errors).map(([key, messages]) => [
+              key === "event_type" && customType ? "custom_event_type" : key === "venue" && customVenue ? "custom_venue" : key,
+              messages[0],
+            ]));
             const firstStep = STEP_FIELDS.findIndex((fields) => fields.some((key) => fieldErrors[key]));
             setStep(firstStep < 0 ? 3 : firstStep + 1);
             setErrors(fieldErrors);
@@ -197,6 +221,7 @@ export default function RequestForm({ profile }: { profile: { id: string; fullNa
   function field(name: Exclude<FieldName, "sponsorship_expected">, label: string, type = "text", placeholder?: string) {
     return <Field key={name} name={name} label={label} error={errors[name]}>
       <input id={name} name={name} type={type} value={values[name]} onChange={change} placeholder={placeholder}
+        maxLength={name === "custom_event_type" ? 100 : name === "custom_venue" ? 200 : undefined}
         aria-invalid={!!errors[name]} aria-describedby={errors[name] ? `${name}-error` : undefined}
         min={type === "number" ? (name === "estimated_budget" ? 0 : 1) : undefined}
         step={type === "number" ? (name === "estimated_budget" ? "0.01" : "1") : undefined}
@@ -209,9 +234,10 @@ export default function RequestForm({ profile }: { profile: { id: string; fullNa
         aria-invalid={!!errors[name]} aria-describedby={errors[name] ? `${name}-error` : undefined} className={`${inputClass} resize-y`} />
     </Field>;
   }
-  function select(name: "event_type" | "venue" | "department" | "target_audience", label: string, options: string[]) {
+  function select(name: "event_type" | "venue" | "department" | "target_audience", label: string, options: string[], placeholder?: string) {
     return <Field name={name} label={label} error={errors[name]}>
       <select id={name} name={name} value={values[name]} onChange={change} className={inputClass} aria-invalid={!!errors[name]}>
+        {placeholder && <option value="" disabled>{placeholder}</option>}
         {options.map((option) => <option key={option}>{option}</option>)}
       </select>
     </Field>;
@@ -301,8 +327,9 @@ export default function RequestForm({ profile }: { profile: { id: string; fullNa
             {step === 1 && <>
               <div className="grid gap-6 sm:grid-cols-2">
                 {field("title", "Event title *", "text", "e.g. Responsible AI Workshop")}
-                {select("event_type", "Event type *", ["Workshop", "Technical", "Cultural", "Sports", "Other"])}
+                {select("event_type", "Event type *", EVENT_TYPES)}
               </div>
+              {customType && field("custom_event_type", "Custom event type *", "text", "e.g. Hackathon")}
               {textarea("description", "Description *", "Describe your event in at least 20 characters.")}
               {textarea("objectives", "Objectives *", "What should participants learn or achieve?")}
               {field("resource_person", "Chief guest or resource person", "text", "Name and designation, if known")}
@@ -312,10 +339,15 @@ export default function RequestForm({ profile }: { profile: { id: string; fullNa
               <div className="grid gap-6 sm:grid-cols-2">
                 {field("start_date", "Start date *", "date")}{field("end_date", "End date *", "date")}
                 {field("start_time", "Start time *", "time")}{field("end_time", "End time *", "time")}
-                {select("venue", "Venue *", ["Innovation Hall", "Main Auditorium", "Seminar Room A"])}
-                {field("duration", "Expected duration", "text", "e.g. 4 hours")}
+                {select("venue", "Venue *", VENUES, "Choose a venue")}
+                <Field name="duration" label="Expected duration">
+                  <output id="duration" htmlFor="start_date end_date start_time end_time" className={`${inputClass} block bg-brand-canvas text-text-secondary`}>
+                    {duration || "Enter valid start and end dates and times"}
+                  </output>
+                </Field>
               </div>
-              {select("department", "Department *", ["Computer Science", "Electronics", "Mechanical"])}
+              {customVenue && field("custom_venue", "Custom venue *", "text", "Enter the venue name")}
+              {select("department", "Department *", DEPARTMENTS, "Choose a department")}
               <p className="rounded-xl bg-brand-selected p-4 text-sm text-text-secondary">All times are campus local time (IST). Venue booking is confirmed after approval.</p>
             </>}
 
@@ -345,12 +377,12 @@ export default function RequestForm({ profile }: { profile: { id: string; fullNa
 
             {step === 4 && <>
               <Review title="Basics" onEdit={() => goTo(1)} items={[
-                ["Event", `${values.title} · ${values.event_type}`], ["Description", values.description],
+                ["Event", `${values.title} · ${eventType}`], ["Description", values.description],
                 ["Objectives", values.objectives], ["Resource person", values.resource_person || "Not specified"],
               ]} />
               <Review title="Schedule and venue" onEdit={() => goTo(2)} items={[
                 ["Start / end date", `${values.start_date} / ${values.end_date}`], ["Time (IST)", `${values.start_time}–${values.end_time}`],
-                ["Duration", values.duration || "Not specified"], ["Venue", values.venue], ["Department", values.department],
+                ["Duration", duration], ["Venue", venue], ["Department", values.department],
               ]} />
               <Review title="Participants and budget estimate" onEdit={() => goTo(3)} items={[
                 ["Participants / audience", `${values.expected_participants} · ${values.target_audience}`], ["Estimated budget", budget],
@@ -369,9 +401,9 @@ export default function RequestForm({ profile }: { profile: { id: string; fullNa
           <div className="rounded-2xl bg-brand-selected p-6">
             <h3 className="mb-6 font-bold">Live summary</h3>
             <p className="text-lg font-bold break-words">{values.title || "Your event title"}</p>
-            <p className="mb-6 text-xs text-text-secondary">{values.event_type} · {profile.fullName}</p>
+            <p className="mb-6 text-xs text-text-secondary">{eventType || "Event type"} · {profile.fullName}</p>
             <div className="space-y-5">{[
-              { icon: Calendar, title: "Schedule", value: schedule }, { icon: MapPin, title: "Venue", value: values.venue },
+              { icon: Calendar, title: "Schedule", value: schedule }, { icon: MapPin, title: "Venue", value: venue || "Choose a venue in step 2" },
               { icon: Users, title: "Participants", value: values.expected_participants || "Add participants in step 3" },
               { icon: Wallet, title: "Budget estimate", value: budget },
             ].map((item) => <div key={item.title} className="flex gap-3"><item.icon size={20} className="shrink-0 text-text-secondary" /><div><p className="text-sm font-bold">{item.title}</p><p className="mt-1 text-xs text-text-secondary">{item.value}</p></div></div>)}</div>

@@ -1,6 +1,6 @@
 import { requireRole } from "@/lib/auth/guard";
 import { createClient } from "@/lib/supabase/server";
-import { getNotificationItems, recentNotificationCount, type ApprovalDocument, type DeanReview, type PrintedLetter, type ViceChancellorDecision } from "./notification-items";
+import { getNotificationItems, recentNotificationCount, type ApprovalDocument, type CommitteeUpload, type DeanReview, type PrintedLetter, type ViceChancellorDecision } from "./notification-items";
 
 type ReadResult<T> = { data: T[] | null; error: { code: string } | null };
 const headers = { "Cache-Control": "private, no-store" };
@@ -12,7 +12,7 @@ async function readUpdates<T>(query: (from: number, to: number) => PromiseLike<R
     const { data, error } = await query(start, start + size - 1);
     if (error) {
       // Earlier installations have Dean reviews and file uploads but no VC decision columns.
-      if (optional && ["42703", "PGRST204"].includes(error.code)) return [];
+      if (optional && ["42703", "PGRST202", "PGRST204"].includes(error.code)) return [];
       throw new Error(`Notification lookup failed (${error.code}).`);
     }
     rows.push(...(data ?? []));
@@ -26,7 +26,7 @@ export async function GET(request: Request) {
   const all = new URL(request.url).searchParams.get("view") === "all";
 
   try {
-    const [reviews, letters, decisions, documents] = await Promise.all([
+    const [reviews, letters, decisions, documents, uploads] = await Promise.all([
       readUpdates<DeanReview>((from, to) => supabase.from("proposal_reviews")
         .select("id, proposal_id, action, note, created_at, proposal:event_proposals!inner(title, created_by)")
         .eq("proposal.created_by", faculty.id).order("created_at", { ascending: false }).order("id", { ascending: true })
@@ -46,8 +46,14 @@ export async function GET(request: Request) {
         .eq("created_by", faculty.id).not("vc_document_uploaded_at", "is", null).not("vc_approval_document_path", "is", null)
         .order("vc_document_uploaded_at", { ascending: false }).order("id", { ascending: true })
         .range(from, to).overrideTypes<ApprovalDocument[], { merge: false }>(), all),
+      readUpdates<CommitteeUpload>(async (from, to) => {
+        const { data, error } = await supabase.rpc("committee_upload_notifications")
+          .order("created_at", { ascending: false }).order("id", { ascending: true })
+          .range(from, to).overrideTypes<CommitteeUpload[], { merge: false }>();
+        return { data: Array.isArray(data) ? data : null, error };
+      }, all, true),
     ]);
-    const items = getNotificationItems(reviews, letters, decisions, documents);
+    const items = getNotificationItems(reviews, letters, decisions, documents, uploads);
     return Response.json({ facultyId: faculty.id, items: all ? items : items.slice(0, recentNotificationCount) }, { headers });
   } catch (error) {
     console.error("Unable to load faculty notifications:", error);

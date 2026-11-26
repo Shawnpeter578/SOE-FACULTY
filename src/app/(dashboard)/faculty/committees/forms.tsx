@@ -184,14 +184,16 @@ export function DeleteCommitteeFileForm({ id, name }: { id: string; name: string
   );
 }
 
-export function CommitteeUpdateForm({ committeeId, href }: { committeeId: string; href: string }) {
+export function CommitteeUpdateForm({ committeeId, href, confirmFileSent }: { committeeId: string; href: string; confirmFileSent: boolean }) {
   const form = useRef<HTMLFormElement>(null);
+  const sentDialog = useRef<HTMLDialogElement>(null);
   const router = useRouter();
   const [result, submit, pending] = useActionState(async (previous: AssignmentActionState, data: FormData) => {
     const response = await submitCommitteeUpdate(committeeId, previous, data);
     if (response.success) {
       form.current?.reset();
       router.replace(href, { scroll: false });
+      if (confirmFileSent && data.has("file")) sentDialog.current?.showModal();
     }
     return response;
   }, initial);
@@ -203,6 +205,11 @@ export function CommitteeUpdateForm({ committeeId, href }: { committeeId: string
       if (attachment instanceof File && !attachment.name) data.delete("file");
       startTransition(() => submit(data));
     }}>
+      {confirmFileSent && <dialog ref={sentDialog} aria-labelledby="committee-file-sent-title" className={dialogClass}>
+        <h2 id="committee-file-sent-title" className="text-lg font-bold text-brand-primary">File sent</h2>
+        <p className="mt-2 text-sm text-text-secondary">Your event lead can see the file in this committee’s Shared files and in Reports.</p>
+        <button type="button" onClick={() => sentDialog.current?.close()} className={`${primary} mt-5`}>Done</button>
+      </dialog>}
       <input type="hidden" name="kind" value="MESSAGE" />
       <label className={label}>Message
         <textarea name="details" rows={3} maxLength={4000} className={`${field} resize-y`} placeholder="Write to your committee…" />

@@ -224,7 +224,7 @@ function NotificationRow({ item, unread, compact = false, onSelect }: { item: Fa
   const Icon = item.tone === "positive" ? Check : item.tone === "attention" ? CircleAlert : FileText;
   return (
     <li>
-      <Link href={`/faculty/events/${item.proposalId}`} onClick={onSelect} className="flex items-start gap-2.5 rounded-lg px-2 py-3 transition-colors hover:bg-slate-50">
+      <Link href={item.href ?? `/faculty/events/${item.proposalId}`} onClick={onSelect} className="flex items-start gap-2.5 rounded-lg px-2 py-3 transition-colors hover:bg-slate-50">
         <span aria-hidden="true" className={`flex size-7 shrink-0 items-center justify-center rounded-full ${item.tone === "positive" ? "bg-emerald-50 text-emerald-800" : item.tone === "attention" ? "bg-amber-50 text-amber-800" : "bg-brand-selected text-brand-primary"}`}><Icon size={15} /></span>
         <span className="min-w-0 flex-1">
           <span className="block break-words text-sm font-semibold text-slate-900">{item.title}</span>

@@ -3,6 +3,7 @@ export const recentNotificationCount = 5;
 export type FacultyNotification = {
   id: string;
   proposalId: string;
+  href?: string;
   title: string;
   message: string;
   note: string | null;
@@ -32,6 +33,10 @@ export type ViceChancellorDecision = {
 
 export type ApprovalDocument = { id: string; proposal_id: string; title: string; vc_document_uploaded_at: string };
 export type PrintedLetter = { id: string; proposal_id: string; title: string; letter_printed_at: string };
+export type CommitteeUpload = {
+  id: string; event_id: string; committee_id: string; proposal_id: string;
+  event_title: string; committee_name: string; submitted_by_name: string; file_name: string; created_at: string;
+};
 
 const deanUpdates: Record<string, Pick<FacultyNotification, "message" | "tone">> = {
   UNDER_REVIEW: { message: "The Dean started reviewing your request", tone: "neutral" },
@@ -40,7 +45,7 @@ const deanUpdates: Record<string, Pick<FacultyNotification, "message" | "tone">>
   APPROVED_BY_DEAN: { message: "The Dean approved your request", tone: "positive" },
 };
 
-export function getNotificationItems(reviews: DeanReview[], letters: PrintedLetter[], decisions: ViceChancellorDecision[], documents: ApprovalDocument[]) {
+export function getNotificationItems(reviews: DeanReview[], letters: PrintedLetter[], decisions: ViceChancellorDecision[], documents: ApprovalDocument[], uploads: CommitteeUpload[] = []) {
   const items: FacultyNotification[] = reviews.map((review) => ({
     id: `dean:${review.id}`,
     proposalId: review.proposal_id,
@@ -81,6 +86,18 @@ export function getNotificationItems(reviews: DeanReview[], letters: PrintedLett
       message: "Your signed VC approval is available",
       note: null,
       at: document.vc_document_uploaded_at,
+      tone: "positive",
+    });
+  }
+  for (const upload of uploads) {
+    items.push({
+      id: `committee-upload:${upload.id}`,
+      proposalId: upload.proposal_id,
+      href: `/faculty/committees/${upload.event_id}/${upload.committee_id}?view=files`,
+      title: upload.event_title,
+      message: `${upload.submitted_by_name} shared a file in ${upload.committee_name}`,
+      note: upload.file_name,
+      at: upload.created_at,
       tone: "positive",
     });
   }

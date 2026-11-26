@@ -35,6 +35,7 @@ export async function saveFacultyProfile(_previous: ProfileActionState, formData
   }
 
   revalidatePath("/faculty/profile");
+  revalidatePath("/faculty/co-faculty/profile");
   revalidatePath("/faculty/dashboard");
   return { success: true, message: "Profile saved." };
 }

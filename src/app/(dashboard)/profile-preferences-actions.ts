@@ -45,6 +45,7 @@ export async function saveProfilePreferences(_previous: PreferencesState, formDa
   if (profile.role === "DEAN") revalidatePath("/dean", "layout");
   else {
     revalidatePath("/faculty/profile");
+    revalidatePath("/faculty/co-faculty/profile");
     revalidatePath("/faculty/events/[id]/letter", "page");
   }
   return { success: true, message };
