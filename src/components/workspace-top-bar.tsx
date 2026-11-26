@@ -26,11 +26,11 @@ export default function WorkspaceTopBar({
   const searchPlaceholder = role === "Dean" ? "Search requests" : role === "Co-Faculty" ? "Search assignments" : "Search events";
   return (
     <header className={`${showOnMobile ? 'flex' : 'hidden lg:flex'} relative z-10 mx-3 mt-3 min-h-16 shrink-0 items-center gap-2 rounded-2xl border border-brand-border bg-brand-surface/90 px-2.5 shadow-sm sm:mx-5 sm:gap-4 sm:rounded-3xl sm:px-5 lg:mx-8 lg:mt-5 lg:min-h-[4.5rem] lg:gap-5 lg:px-6 xl:px-8`}>
-      <div className="hidden shrink-0 items-center gap-2.5 lg:flex">
+      <div className={`${showSearch ? "hidden lg:flex" : "flex min-w-0"} shrink-0 items-center gap-2.5`}>
         <span className="flex size-10 items-center justify-center rounded-xl bg-brand-selected text-brand-primary">
           <LayoutGrid className="size-5" aria-hidden="true" />
         </span>
-        <p className="text-sm font-bold text-brand-primary">{role} workspace</p>
+        <p className="text-sm font-bold text-brand-primary">{role}<span className="hidden sm:inline"> workspace</span></p>
       </div>
       {showSearch && (
         <Form

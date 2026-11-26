@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import StatCard from "@/components/metric-card";
 import { formatEventDateRange } from "@/lib/event-approval";
@@ -12,6 +12,7 @@ import {
   Calendar,
   Clock,
   CalendarCheck,
+  ChevronDown,
   ChevronRight,
   Check,
   ArrowRight,
@@ -19,6 +20,8 @@ import {
   Plus,
   X,
 } from "lucide-react";
+
+const dashboardEventBatchSize = 5;
 
 type StageStatus = "completed" | "current" | "upcoming";
 
@@ -208,7 +211,9 @@ export default function DashboardClient({
   proposals,
   events,
 }: DashboardProps) {
+  const [visibleCount, setVisibleCount] = useState(dashboardEventBatchSize);
   const dashboardEvents = useMemo<EventItem[]>(() => {
+    const requestedAt = new Map(proposals.map((proposal) => [proposal.id, proposal.created_at]));
     const proposalItems: EventItem[] = proposals.map((proposal) => {
       const date = formatDate(proposal.start_date);
 
@@ -263,10 +268,13 @@ export default function DashboardClient({
         )
     );
 
-    return [...officialEventItems, ...uniqueProposals].sort(
-      (a, b) => a.startDate.localeCompare(b.startDate)
-    );
+    return [...officialEventItems, ...uniqueProposals].sort((a, b) => {
+      const aDate = Date.parse(requestedAt.get(a.proposalId) ?? a.startDate);
+      const bDate = Date.parse(requestedAt.get(b.proposalId) ?? b.startDate);
+      return bDate - aDate || a.id.localeCompare(b.id);
+    });
   }, [proposals, events]);
+  const hasMoreEvents = dashboardEvents.length > visibleCount;
 
   const pendingCount = proposals.filter((proposal) =>
     ["SUBMITTED", "UNDER_REVIEW", "CHANGES_REQUESTED"].includes(
@@ -359,9 +367,17 @@ export default function DashboardClient({
                 </Link>
               </div>
             ) : (
-              dashboardEvents.map((event) => <EventCard key={event.id} event={event} />)
+              dashboardEvents.slice(0, visibleCount).map((event) => <EventCard key={event.id} event={event} />)
             )}
-
+            {hasMoreEvents && (
+              <button
+                type="button"
+                onClick={() => setVisibleCount((count) => count + dashboardEventBatchSize)}
+                className="inline-flex min-h-11 items-center justify-center gap-2 self-center rounded-xl border border-brand-border bg-white px-4 text-sm font-semibold text-brand-primary transition-colors hover:bg-brand-selected focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-primary"
+              >
+                Load more events <ChevronDown size={16} aria-hidden="true" />
+              </button>
+            )}
           </div>
 
           {/* Desktop sidebar */}

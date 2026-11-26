@@ -2,7 +2,7 @@
 
 import { startTransition, useActionState, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Pencil, Plus, Search, Send, Trash2, UserRound, X } from "lucide-react";
+import { CircleCheck, Paperclip, Pencil, Plus, Search, Send, Trash2, UserRound, X } from "lucide-react";
 import { COMMITTEE_FILE_ACCEPT } from "@/lib/validation/committee-attachments";
 import { assignCommitteeCoordinator, createCommittee, deleteCommittee, deleteCommitteeFile, editCommittee, removeCommitteeCoordinator, searchCommitteeCoordinators, submitCommitteeUpdate, type CommitteeSearchState } from "./actions";
 import type { AssignmentActionState } from "../co-faculty/actions";
@@ -21,14 +21,23 @@ function FormMessage({ result }: { result: AssignmentActionState }) {
 }
 
 export function CreateCommitteeForm({ eventId }: { eventId: string }) {
-  const [result, submit, pending] = useActionState(createCommittee.bind(null, eventId), initial);
+  const [name, setName] = useState("");
+  const [responsibilities, setResponsibilities] = useState("");
+  const [result, submit, pending] = useActionState(async (previous: AssignmentActionState, data: FormData) => {
+    const response = await createCommittee(eventId, previous, data);
+    if (response.success) {
+      setName("");
+      setResponsibilities("");
+    }
+    return response;
+  }, initial);
   return (
     <form action={submit} className="space-y-3">
       <label className={label}>Committee name
-        <input name="name" maxLength={80} required className={field} placeholder="Food, logistics, or registration" />
+        <input name="name" maxLength={80} required className={field} placeholder="e.g. Event logistics" value={name} onChange={(event) => setName(event.target.value)} disabled={pending} />
       </label>
       <label className={label}>Responsibilities <span className="font-normal text-text-secondary">(optional)</span>
-        <textarea name="responsibilities" rows={3} maxLength={1500} className={`${field} resize-y`} />
+        <textarea name="responsibilities" rows={4} maxLength={1500} className={`${field} resize-y`} placeholder="What should this team handle?" value={responsibilities} onChange={(event) => setResponsibilities(event.target.value)} disabled={pending} />
       </label>
       <button type="submit" disabled={pending} className={primary}><Plus size={16} aria-hidden="true" />{pending ? "Creating…" : "Create committee"}</button>
       <FormMessage result={result} />
@@ -187,11 +196,14 @@ export function DeleteCommitteeFileForm({ id, name }: { id: string; name: string
 export function CommitteeUpdateForm({ committeeId, href, confirmFileSent }: { committeeId: string; href: string; confirmFileSent: boolean }) {
   const form = useRef<HTMLFormElement>(null);
   const sentDialog = useRef<HTMLDialogElement>(null);
+  const fileInput = useRef<HTMLInputElement>(null);
+  const [fileName, setFileName] = useState("");
   const router = useRouter();
   const [result, submit, pending] = useActionState(async (previous: AssignmentActionState, data: FormData) => {
     const response = await submitCommitteeUpdate(committeeId, previous, data);
     if (response.success) {
       form.current?.reset();
+      setFileName("");
       router.replace(href, { scroll: false });
       if (confirmFileSent && data.has("file")) sentDialog.current?.showModal();
     }
@@ -206,19 +218,37 @@ export function CommitteeUpdateForm({ committeeId, href, confirmFileSent }: { co
       startTransition(() => submit(data));
     }}>
       {confirmFileSent && <dialog ref={sentDialog} aria-labelledby="committee-file-sent-title" className={dialogClass}>
+        <span className="mb-3 grid size-10 place-items-center rounded-xl bg-success-bg text-emerald-800"><CircleCheck size={21} aria-hidden="true" /></span>
         <h2 id="committee-file-sent-title" className="text-lg font-bold text-brand-primary">File sent</h2>
         <p className="mt-2 text-sm text-text-secondary">Your event lead can see the file in this committee’s Shared files and in Reports.</p>
         <button type="button" onClick={() => sentDialog.current?.close()} className={`${primary} mt-5`}>Done</button>
       </dialog>}
       <input type="hidden" name="kind" value="MESSAGE" />
-      <label className={label}>Message
-        <textarea name="details" rows={3} maxLength={4000} className={`${field} resize-y`} placeholder="Write to your committee…" />
-      </label>
-      <label className={label}>Attachment
-        <input type="file" name="file" accept={COMMITTEE_FILE_ACCEPT} className={`${field} file:mr-3 file:rounded-lg file:border-0 file:bg-brand-selected file:px-3 file:py-1 file:font-semibold file:text-brand-primary`} />
-      </label>
-      <p className="text-xs text-text-secondary">PDF, Word, Excel, PowerPoint, OpenDocument, text files and images · Up to 10 MB</p>
-      <button type="submit" disabled={pending} className={primary}><Send size={16} aria-hidden="true" />{pending ? "Sending…" : "Send to committee"}</button>
+      <div className="rounded-2xl border border-brand-border bg-brand-canvas/60 p-2.5 focus-within:border-brand-primary/40">
+        <label className="block px-2 pt-1 text-xs font-semibold text-brand-primary">Message
+          <textarea name="details" rows={2} maxLength={4000} disabled={pending} className="mt-1 block min-h-14 w-full resize-y bg-transparent text-sm text-text-primary outline-none placeholder:text-text-secondary disabled:opacity-60" placeholder="Write to your committee…" />
+        </label>
+        {fileName && <div className="mb-2 flex min-w-0 items-center gap-2 rounded-xl border border-brand-border bg-white px-2.5 py-1.5 text-sm text-brand-primary">
+          <Paperclip size={15} className="shrink-0" aria-hidden="true" />
+          <span className="min-w-0 flex-1 truncate" title={fileName}>{fileName}</span>
+          <button type="button" disabled={pending} onClick={() => {
+            if (fileInput.current) {
+              fileInput.current.value = "";
+              fileInput.current.focus();
+            }
+            setFileName("");
+          }} aria-label="Remove attachment" className="grid size-8 shrink-0 place-items-center rounded-lg hover:bg-brand-selected"><X size={15} aria-hidden="true" /></button>
+        </div>}
+        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-brand-border pt-2">
+          <label className={`relative cursor-pointer focus-within:outline-2 focus-within:outline-brand-primary ${secondary} ${pending ? "pointer-events-none opacity-60" : ""}`}>
+            <Paperclip size={16} aria-hidden="true" />Attach file
+            <input ref={fileInput} type="file" name="file" aria-label="Attachment" aria-describedby="committee-file-hint" accept={COMMITTEE_FILE_ACCEPT} disabled={pending}
+              className="sr-only" onChange={(event) => setFileName(event.target.files?.[0]?.name ?? "")} />
+          </label>
+          <button type="submit" disabled={pending} className={primary}><Send size={16} aria-hidden="true" />{pending ? "Sending…" : "Send to committee"}</button>
+        </div>
+      </div>
+      <p id="committee-file-hint" className="text-xs text-text-secondary">Documents and images up to 10 MB.</p>
       <FormMessage result={result} />
     </form>
   );

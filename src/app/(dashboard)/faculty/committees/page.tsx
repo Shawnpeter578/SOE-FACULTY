@@ -1,12 +1,11 @@
-import Link from "next/link";
-import { ArrowRight, CalendarDays, LockKeyhole } from "lucide-react";
+﻿import Link from "next/link";
+import { Archive, ArrowUpRight, CalendarDays, CircleCheck } from "lucide-react";
 import { requireRole } from "@/lib/auth/guard";
-import { formatEventDateRange } from "@/lib/event-approval";
 import { approvedCommitteeEvents, committeeLoadError } from "@/lib/event-committees-server";
 import type { CommitteeEvent } from "@/lib/event-committees";
 import { createClient } from "@/lib/supabase/server";
 import AppLayout from "../components/AppLayout";
-import { CommitteeHeader, committeePage, committeePanel } from "./workspace-ui";
+import { CommitteeEmpty, CommitteeEventMeta, CommitteeHeader, committeeLink, committeePage, committeePanel } from "./workspace-ui";
 
 export default async function CommitteesPage() {
   const profile = await requireRole(["FACULTY"]);
@@ -17,28 +16,30 @@ export default async function CommitteesPage() {
   return (
     <AppLayout facultyName={profile.full_name}>
       <div className={committeePage}>
-        <CommitteeHeader title="Committees" context="Choose an approved event to manage its teams.">
-          <Link href="/faculty/reports" className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-brand-border bg-white px-3 text-sm font-semibold text-brand-primary hover:bg-brand-selected">Open Reports <ArrowRight size={16} aria-hidden="true" /></Link>
+        <CommitteeHeader title="Committees" context="Create teams, assign co-faculty, and collect files for your events.">
+          <Link href="/faculty/reports" className={committeeLink}><Archive size={16} aria-hidden="true" />Open Reports</Link>
         </CommitteeHeader>
-        {error ? <p role="status" className={`${committeePanel} p-5 text-sm text-text-secondary`}>{committeeLoadError(error.code)}</p>
-          : events.length ? <ul className={`${committeePanel} divide-y divide-brand-border overflow-hidden`}>
-            {events.map((event) => (
-              <li key={event.id}>
-                <Link href={`/faculty/committees/${event.id}`} className="group flex items-center gap-3 p-4 no-underline transition-colors hover:bg-brand-selected hover:no-underline sm:gap-4">
-                  <span className="grid size-11 shrink-0 place-items-center rounded-lg bg-brand-selected text-brand-primary"><CalendarDays size={19} aria-hidden="true" /></span>
-                  <div className="min-w-0 flex-1">
-                  <div className="flex items-start justify-between gap-3">
-                    <h2 className="min-w-0 break-words text-lg font-bold text-brand-primary">{event.title}</h2>
-                  </div>
-                  <p className="mt-1 break-words text-sm text-text-secondary">{formatEventDateRange(event.start_date, event.end_date)}{event.venue && ` · ${event.venue}`}</p>
-                  </div>
-                  <span className="hidden shrink-0 items-center gap-1.5 rounded-md bg-success-bg px-2 py-1 text-xs font-semibold text-emerald-800 sm:inline-flex"><LockKeyhole size={13} aria-hidden="true" />Locked</span>
-                  <ArrowRight size={17} className="shrink-0 text-brand-primary" aria-hidden="true" />
-                </Link>
-              </li>
-            ))}
-          </ul>
-          : <p className={`${committeePanel} p-6 text-sm text-text-secondary`}>Events appear here after you record VC approval and lock them with the signed letter.</p>}
+        <section aria-labelledby="committee-events-title">
+          <h2 id="committee-events-title" className="mb-3 text-lg font-bold text-brand-primary">Your approved events</h2>
+          {error ? <p role="status" className={`${committeePanel} p-5 text-sm text-text-secondary`}>{committeeLoadError(error.code)}</p>
+            : events.length ? <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              {events.map((event) => (
+                <li key={event.id} className={committeePanel}>
+                  <Link href={`/faculty/committees/${event.id}`} className="group flex h-full flex-col gap-4 rounded-2xl p-5 no-underline transition-colors hover:bg-brand-selected focus-visible:outline-2 focus-visible:outline-brand-primary">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-brand-selected text-brand-primary group-hover:bg-white"><CalendarDays size={19} aria-hidden="true" /></span>
+                      <span className="inline-flex items-center gap-1.5 rounded-full bg-success-bg px-2.5 py-1 text-xs font-semibold text-emerald-800"><CircleCheck size={13} aria-hidden="true" />VC approved</span>
+                    </div>
+                    <div className="min-w-0 space-y-2">
+                      <h3 className="break-words text-lg font-bold text-brand-primary">{event.title}</h3>
+                      <CommitteeEventMeta start={event.start_date} end={event.end_date} venue={event.venue} />
+                    </div>
+                    <span className="mt-auto flex items-center justify-between gap-3 border-t border-brand-border pt-3 text-sm font-semibold text-brand-primary">Manage committees <ArrowUpRight size={16} aria-hidden="true" /></span>
+                  </Link>
+                </li>
+              ))}
+            </ul> : <div className={committeePanel}><CommitteeEmpty title="No approved events yet">Events appear here after you record VC approval and lock them with the signed letter.</CommitteeEmpty></div>}
+        </section>
       </div>
     </AppLayout>
   );
